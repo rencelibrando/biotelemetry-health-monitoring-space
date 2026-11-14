@@ -1,0 +1,202 @@
+[
+  {
+    "id": "LAR-TOPS-354",
+    "case_number": "LAR-TOPS-354",
+    "title": "Flexible Lightweight Radiation Shielding",
+    "abstract": "Lead-filled aprons are currently used for atomic number (Z)-grade radiation shielding in the medical industry to protect personnel from hazardous gamma radiation. These apron garments are made with lead-filled elastomeric sheets encased in polymeric fabrics and are both heavy and bulky to meet necessary shielding requirements. In addition, there are environmental safety concerns surrounding disposal of these garments due to their lead content. An innovator at NASA Langley Research Center has developed a novel method for making thin, lightweight radiation shielding that can be sprayed or melted onto common textiles used in clothing such as cotton, nylon, polyester, Nomex and Kevlar. The lead-free shielding is more effective at blocking radiation as compared with similar thicknesses of lead while being up to 25% lighter. The shielding can also be formed into a variety of garments such as shirts, vests, jackets, and pants with significantly greater comfort and conformity than the aprons currently in use.",
+    "category": "Materials and Coatings",
+    "center": "LARC"
+  },
+  {
+    "id": "KSC-TOPS-97",
+    "case_number": "KSC-TOPS-97",
+    "title": "Deployed Electromagnetic Radiation Deflector Shield",
+    "abstract": "Spaceflight outside of the Earth's protective magnetic field is dangerous from a cosmic radiation perspective. Inside Earth's magnetic field, where the manned International Space Station (ISS) orbits, the radiation encountered is minimal and almost all is deflected by our planet's magnetic fields. However, outside that protective shield, the Sun's solar wind (high energy radiation, solar energetic particles or SEPs) consisting of protons, electrons, alpha particles and plasmas continuously bombards the spacecraft for the months or years of spaceflight. On occasion the Sun produces a CME (Coronal Mass Ejection) that vastly increases the energy and volume of this radiation. These particles damage human DNA as well as living tissue and can destroy sensitive electronics.  The Deployed Electromagnetic Radiation Deflector Shield (DERDS) provides a magnetic field that will deflect SEPs and CMEs and other harmful solar and cosmic rays away from a manned spacecraft, robotic spacecraft, or manned extra-planetary base stations using an electromagnet that is deployed between the spacecraft/station and the source of radiation and creates a magnetosphere or zone of minimal radiation in which the spacecraft or base station would reside.",
+    "category": "Aerospace",
+    "center": "KSC"
+  },
+  {
+    "id": "TOP2-304",
+    "case_number": "TOP2-304",
+    "title": "Computer-implemented energy depletion radiation shielding",
+    "abstract": "Radiation shielding for space as well as some terrestrial applications is challenging due to the wide variety and energy ranges of radiation particles. Thin layers of material or shielding, or both, placed between the radiation environment and a target, sensitive electronics or biology, has some effect on mitigating radiation dose or damage caused by radiation in a material. Another issue with common radiation shielding designs is that a single shielding material will respond differently to different types or energies of radiation or might produce secondary radiation that can be just as damaging as the primary radiation. NASA Ames has developed a novel technology that provides a new process for designing and accurately \u201ctuning\u201d radiation shields to possess the specific characteristics required for each application before testing, reducing the need for iterative radiation beam testing throughout the development process.",
+    "category": "Materials and Coatings",
+    "center": "ARC"
+  },
+  {
+    "id": "MSC-TOPS-99",
+    "case_number": "MSC-TOPS-99",
+    "title": "Triggering Li-ion Battery Cells with Laser Radiation",
+    "abstract": "Innovators at NASA Johnson Space Center have developed a high-powered infrared (IR) laser that can trigger Li-ion battery cells into thermal runaway (TR) without perforating the battery\u2019s can wall like previous methods. Inducing TR in a battery cell allows engineers to test and improve the safety performance of overheated batteries that can potentially catch fire or explode. The primary advantage of this method is the heat energy delivered by the laser can be localized to the exact target spot on the battery cell minimizing thermal biasing to adjacent cells. This laser method does not require any internal modification of the test subject cell design nor require patch heating to trigger a short-circuit. Triggering Li-ion Cells with Laser Radiation could work on any commercial battery cell design with only exterior surface treatment required, which can be done by the user.",
+    "category": "Power Generation and Storage",
+    "center": "JSC"
+  },
+  {
+    "id": "LAR-TOPS-201",
+    "case_number": "LAR-TOPS-201",
+    "title": "Atomic Number (Z)-Grade Radiation Shields from Fiber Metal Laminates",
+    "abstract": "NASA Langley Research Center has developed a shapeable radiation shield made from fiber metal laminates. The technology was developed based on a need for better performing shielding of sensitive spacecraft electronics. Beyond spacecraft electronics, the invention has uses for radiation protective clothing, radioactive fluid piping shields, nuclear reactor shields, and other applications.",
+    "category": "Materials and Coatings",
+    "center": "LARC"
+  },
+  {
+    "id": "LEW-TOPS-142",
+    "case_number": "LEW-TOPS-142",
+    "title": "Compact Full-Field Ion Detector System (CFIDS)",
+    "abstract": "Space radiation, or \"space weather\" comes in different forms from a variety of sources. High energy X-rays, gamma rays, and other ionizing radiation, in the form of subatomic particles and ionized atoms, can be produced by black hole activity, new star formation, and even via lightning from thunderstorms. \n\nMost of the radiation from space that reaches the earth is generated by our sun, in the form of the solar wind, solar flares, and coronal mass ejections. One of the ways in which the sun releases charged particles from its corona (outer atmosphere) is in the the solar wind. Interaction between the sun\u2019s magnetic field, the solar wind, and the earth\u2019s magnetic field can lead to magnetic disturbances of the earth\u2019s magnetic field known as geomagnetic storms.  \n\nImpacts of Space Radiation: High-energy radiation from space can damage electric components on satellites, space stations, and high-altitude aircraft.  This damage can disrupt functionality and communication and may also lead to complete failure of those components. Ionizing radiation also leads to the slow degradation of materials that structures in space are made from. It can cause damage to DNA of astronauts and high-altitude aircraft pilots and crew. \n\nThis same ionizing radiation interacts with the magnetic fields and atmospheres of planets such as the earth that have magnetic fields and atmospheres. It can disrupt radio signals, communications signals, and electrical grid performance on earth.",
+    "category": "Sensors",
+    "center": "GRC"
+  },
+  {
+    "id": "LAR-TOPS-350",
+    "case_number": "LAR-TOPS-350",
+    "title": "High Atomic Number Coatings for Fabrics",
+    "abstract": "NASA Langley Research Center has developed an innovation to promote the adhesion and improve the durability of high atomic number metal coatings on oxygen- or hydroxyl-rich surfaces. This new approach is useful for building radiation shields via the Z-grading method, the process of layering metal materials with different atomic numbers to provide radiation protection for protons, electrons, and x-rays. This invention enables Z-graded coatings to be applied to lower cost and lighter weight substrates, such as glass fiber fabrics, while maintaining the durability and flexibility needed for spacecraft electronics, radiation protective clothing, and other applications.",
+    "category": "Materials and Coatings",
+    "center": "LARC"
+  },
+  {
+    "id": "GSC-TOPS-359",
+    "case_number": "GSC-TOPS-359",
+    "title": "SpaceCube Mini Solid State Data Recorder (SSDR)",
+    "abstract": "Upcoming SmallSat missions at NASA and in the commercial space sector require highly performant, miniaturized, and radiation tolerant components. One need is for data recorders capable of storing large quantities of data generated by advanced sensors for extended durations. Commercially available SmallSat form factor data recorders generally either have poor reliability in high radiation environments or do not provide the high-speed read/write data rates necessary for high-performance detectors and sensors. This limits data collection ability, which also limits the ability to perform on-board processing. \n\nTo meet data recording needs for SmallSat missions in harsh radiation orbits and environments (e.g., GEO, polar, lunar, etc.) innovators at NASA\u2019s Goddard Space Flight Center have developed a radiation tolerant single-board solid-state data recorder (SSDR) card. This miniaturized (3.5\u201d x 3.5\u201d) card is configured for use in a 1U CubeSat payload form factor multi-purpose architecture, enabling high density data storage and on-board processing for a variety of data-intensive SmallSat missions.",
+    "category": "Information Technology and Software",
+    "center": "GSFC"
+  },
+  {
+    "id": "LAR-TOPS-250",
+    "case_number": "LAR-TOPS-250",
+    "title": "Novel Radiation Shielding Material for Dramatically Extending the Orbit Life of Cubesats",
+    "abstract": "The NASA Langley Research Center has developed an innovative radiation shield made by layering metal materials in the Z-shielding method. It is a new, low cost and easy to implement method to protect CubeSat electronic circuits from ionizing radiation found in Low Earth Orbits. It is estimated that this approach can extend the life of CubeSat electronics by an order of magnitude.",
+    "category": "Materials and Coatings",
+    "center": "LARC"
+  },
+  {
+    "id": "LAR-TOPS-352",
+    "case_number": "LAR-TOPS-352",
+    "title": "Improved Efficiency in Nuclear Propulsion",
+    "abstract": "Innovators at Langley Research Center (LaRC) have developed a design and method to improve efficiency in nuclear propulsion technology for long-distance space missions. The nuclear thermionic avalanche cell (NTAC) Augmented Nuclear Electric Propulsion and/or Nuclear Thermal Propulsion design surrounds the rocket chamber and reactor core with an NTAC and safely converts gamma ray radiation expelled during nuclear fission processes, which  would otherwise be lost to radiation shielding, into electric power to support additional propulsion.  Compared to current radiation-shielded propulsion systems, this design is more efficient and lower weight, enabling faster nuclear propulsion travel. This technology potentially has a wide range of applications including nuclear power generation applications on Earth, and for unmanned vehicles, and commercial space exploration.",
+    "category": "Propulsion",
+    "center": "LARC"
+  },
+  {
+    "id": "LEW-TOPS-199",
+    "case_number": "LEW-TOPS-199",
+    "title": "Additively Manufactured Oxide Dispersion Strengthened Steel for Nuclear and High-Temperature Applications",
+    "abstract": "Advanced nuclear energy systems require materials that endure extreme temperatures and intense radiation while maintaining structural integrity. Oxide dispersion strengthened (ODS) steels incorporate nanoscale ceramic particles to enhance high-temperature mechanical properties and radiation tolerance, making them ideal for these demanding environments. However, traditional ODS steel manufacturing relies on mechanical alloying that deforms powder particles during additive manufacturing processes. This incompatibility with modern manufacturing methods has severely limited the applicability of ODS steels in next-generation nuclear systems. \n\nIn response to this issue, engineers at NASA Glenn Research Center developed Additively Manufactured Oxide Dispersion Strengthened Steel for Nuclear and High-Temperature Applications. This invention coats iron-chromium steel powder with yttria nanoparticles while preserving the flowability needed for additive manufacturing, producing high-strength, radiation-resistant components with design flexibility for nuclear applications.",
+    "category": "Materials and Coatings",
+    "center": "GRC"
+  },
+  {
+    "id": "LAR-TOPS-282",
+    "case_number": "LAR-TOPS-282",
+    "title": "Device for Providing Real-Time Rotorcraft Noise Abatement Information",
+    "abstract": "Rotorcraft typically operate near the ground throughout the duration of the operation. For this reason, military rotorcraft are vulnerable to acoustic detection and public acceptance of civil rotorcraft is limited by annoyance caused by rotor noise radiation. The purpose of this device is to inform the rotorcraft operator of the acoustic impact of rotor noise radiation so that the flight condition of the vehicle can be changed to reduce and/or redirect rotor noise away from noise sensitive areas.",
+    "category": "Instrumentation",
+    "center": "LARC"
+  },
+  {
+    "id": "GSC-TOPS-35",
+    "case_number": "GSC-TOPS-35",
+    "title": "SpaceCube",
+    "abstract": "SpaceCube is a cross-cutting, in-flight reconfigurable Field Programmable Gate Array (FPGA) based on-board hybrid science data processing system developed at the NASA Goddard Space Flight Center (GSFC). The goal of the SpaceCube program is to provide 10x to 100x improvements in on-board computing power while lowering relative power consumption and cost. The SpaceCube design strategy incorporates commercial radiation-tolerant Xilinx Virtex FPGA technology and couples it with an integrated upset detection and correction architecture to provide reliable order of magnitude improvements in computing power over traditional fully radiation-hardened flight systems.",
+    "category": "Electrical and Electronics",
+    "center": "GSFC"
+  },
+  {
+    "id": "TOP2-197",
+    "case_number": "TOP2-197",
+    "title": "Habitat Water Wall for Water, Solids, and Atmosphere Recycle and Reuse",
+    "abstract": "NASA has created a unique approach to water, solids, and atmosphere recycle and reuse. The membrane water wall concept includes a system for membrane-based water, solids, and air treatment functions that is embedded into the walls of inflatable or rigid habitat structures. It provides novel and potentially game changing mass reuse and structural advantages over current mechanical life support hardware. It also provides radiation protection, building materials and structural elements. This approach potentially reduces the cost of human space flight by replacing the mass, power, and volume of conventional life support hardware. It removes air, water, and waste treatment hardware from the usable habitat volume. Also, it provides structural elements to strengthen the habitat shell, provide thermal control, and provide radiation shielding.",
+    "category": "Environment",
+    "center": "ARC"
+  },
+  {
+    "id": "LEW-TOPS-60",
+    "case_number": "LEW-TOPS-60",
+    "title": "Luminescence-Based Temperature Mapping and Sensing Systems",
+    "abstract": "NASA's Glenn Research Center has developed non-contact, ultra-bright luminescence-based surface temperature mapping and sensing systems capable of operating in environments with extremely high thermal radiation. This is accomplished through the use of a unique chromium-doped gadolinium aluminate (Cr:GdAlO3) temperature-sensing phosphor. This technology has been proven accurate up to 1300&deg;C - a dramatic increase when compared to current state-of-the-art, which has only been demonstrated up to 600&deg;C. In addition to providing breakthrough temperature measurement capability, this innovation is immune to electromagnetic interference, making it ideal for operation in harsh, high-temperature environments. Furthermore, its unprecedented ultra-bright intensity allows for accurate temperature measurements in the presence of high levels of background radiation.",
+    "category": "Sensors",
+    "center": "GRC"
+  },
+  {
+    "id": "GSC-TOPS-291",
+    "case_number": "GSC-TOPS-291",
+    "title": "DellingrX Small Satellite Spacecraft Bus Architecture",
+    "abstract": "The launch opportunities for SmallSat secondary and tertiary payloads has and will continue to significantly increase due in large part to the inclusion of ESPA rings on most missions that have excess lift capacity, initiatives to include rideshares alongside large NASA missions, and the proliferation of commercial launch services. Science investigators are taking advantage of the initiatives, opportunities, and capabilities by proposing advanced mission concepts and architectures that require a robust, reliable, and radiation tolerant spacecraft bus. There is a push to achieve decadal-class science goals with small, focused missions. However, current flight proven reliable and radiation tolerant spacecraft bus options from industry are limited or not available. The DellingrX Small Satellite Spacecraft Bus Architecture enables challenging and harsh environment mission architectures.",
+    "category": "Aerospace",
+    "center": "GSFC"
+  },
+  {
+    "id": "LEW-TOPS-71",
+    "case_number": "LEW-TOPS-71",
+    "title": "Low-Power Charged Particle Detector",
+    "abstract": "Innovators at NASA's Glenn Research Center have developed a miniature, solid-state radiation detector that can be used in situations where compact size, low weight, and low power consumption are required. Conventional scintillator-based charged particle counters rely upon a glass photomultiplier tube (PMT) to translate light energy from the radiation source into an electrical signal. Because PMTs are bulky, fragile, and require high voltages to operate, they are not well-suited for harsh environments. \n\nGlenn's technology is solid state, thus eliminating PMTs, which means the device can operate in cramped, harsh, and low-power environments. In addition, because the detector uses a low-voltage, UV-sensitive photodiode, a wave shifter is not required, improving efficiency and further minimizing weight and bulk. Originally developed for space exploration, this compact, robust particle counter can also be used in medical dosimetry, mining, oil and gas exploration, nuclear facility monitoring, and more.",
+    "category": "Environment",
+    "center": "GRC"
+  },
+  {
+    "id": "GSC-TOPS-316",
+    "case_number": "GSC-TOPS-316",
+    "title": "FGPA Design and Testing Suite for Spacecube 3.0",
+    "abstract": "SpaceCube 3.0 is a next generation system that provides a new and powerful Cubesat architecture.  This architecture is reconfigurable while being orders of magnitude more powerful than its Spacecube 2.0 predecessor.  It\u2019s hardware is updated with more powerful radiation tolerant circuits designed to function in a constellation as well as autonomously.",
+    "category": "Aerospace",
+    "center": "GSFC"
+  },
+  {
+    "id": "GSC-TOPS-243",
+    "case_number": "GSC-TOPS-243",
+    "title": "SpaceCube v2.0 Processor with DDR2 Memory Upgrade",
+    "abstract": "The DDR SDRAM memory dies that had been radiation tested and flight qualified have reached end of life.   The remaining stock of DDR SDRAM is rapidly dwindling and future projects will require a change to DDR2 SDRAM.  Additionally, the next generation of instruments are set to produce even greater amounts of science data and require even more memory bandwidth for on-board processing.  Switching to DDR2 improves support for new instruments because it can provide more than a 2x memory speedup over the DDR1 design.",
+    "category": "Instrumentation",
+    "center": "GSFC"
+  },
+  {
+    "id": "GSC-TOPS-333",
+    "case_number": "GSC-TOPS-333",
+    "title": "Tannin Based Foams Utilizing 10B-Al-N Atomic Layer Deposition",
+    "abstract": "Atomic layer deposition (ALD) is a cost-effective nanoadditive-manufacturing technique that allows for the conformal coating of substrates with atomic control in a benign temperature and pressure environment. Through the introduction of paired precursor gases, thin films can be deposited on a myriad of substrates regardless of topography. By providing atomic layer control, where single layers of atoms can be deposited, the fabrication of metal transparent films, precise nano-laminates, and coatings of nanochannels and pores is achievable. A characteristic of the surface adsorption and reaction mechanisms in ALD is that they are normally self-limiting, allowing for atomically accurate control of nanometer (nm) thickness. Therefore, high uniformity and precise thickness control make ALD an attractive process for the creation of optical and other nano-scale devices.",
+    "category": "Materials and Coatings",
+    "center": "GSFC"
+  },
+  {
+    "id": "LAR-TOPS-280",
+    "case_number": "LAR-TOPS-280",
+    "title": "Standoff Ultra-Compact Micro-Raman Sensor",
+    "abstract": "Traditional micro-Raman systems are capable of performing fine-scale mineralogy; but these are used for in situ analysis. Most of the micro-Raman systems are designed and implemented for dark room operation. Such Raman systems: (1) require sample collection and (2) require shielding of daylight background radiation. With the use of continuous wave (CW) lasers and a non-time gating detection approach, it is also difficult to distinguish the biofluorescence from the mineral luminescence. These limitations will significantly lower the capability of these micro-Raman systems in terms of the variety of samples that can be analyzed.",
+    "category": "Instrumentation",
+    "center": "LARC"
+  },
+  {
+    "id": "GSC-TOPS-65",
+    "case_number": "GSC-TOPS-65",
+    "title": "Simple Impedance Matched Planar Microwave Blocking Filter",
+    "abstract": "Thermal blocking filters find wide use in cryogenic applications ranging from quantum computing to ultra-low-noise detectors. They can be used to provide the environmental isolation between cooled devices and the warmer temperature supporting bias and readout circuitry. In particular, they are effective in rejecting thermal radiation, limiting radio frequency interference, providing a convenient means of heat sinking signal lines, and realizing a vacuum feedthrough. In a microwave instrumentation setting, a well-defined characteristic impedance, typically approximating a short or matched boundary condition, is desirable. From a radiometric perspective, such filter structures limit the available power by modifying the transmitted response and effectively reducing the photon density of states in the Planck distribution to a single dimension.",
+    "category": "Electrical and Electronics",
+    "center": "GSFC"
+  },
+  {
+    "id": "GSC-TOPS-377",
+    "case_number": "GSC-TOPS-377",
+    "title": "Atomic Layer Deposition-Enhanced Far-to-Mid Infrared Camera Coating",
+    "abstract": "Infrared (IR) cameras for space missions require robust coatings that are cryogenically cooled to reduce thermal noise and are low-reflectance absorptive to mitigate image artifacts such as glinting, ghosting, and internal reflections. Thermal noise reduction improves as temperatures decrease (e.g., below 30 K). However, capturing the far-to-mid IR spectrum typically requires thick layers of common 'super black' coatings, which often use free-standing nanotubes or foam-like structures that become fragile below 120-150 K. \n\nIn response, engineers at Goddard Space Flight Center developed an Atomic Layer Deposition (ALD)-Enhanced Far-to-Mid IR Camera Coating that can be cooled to and operate at less than 30 K while maintaining low-reflection absorption. The coating results in enhanced optical performance, increased strength, reduced total mass, and suitable ionizing radiation control.",
+    "category": "Materials and Coatings",
+    "center": "GSFC"
+  },
+  {
+    "id": "TOP2-226",
+    "case_number": "TOP2-226",
+    "title": "A New Class of Strong and Flexible Carbon Fiber Reinforced Phenolic Composites",
+    "abstract": "NASA has filed a patent on a technology that creates a new class of phenolic and carbon fiber reinforced phenolic composites for thermal protection systems.  The new materials have the advantage of being lightweight, strong, tough, yet heat resistant, and flexible. Their best characteristic is their remarkable capability to retain excellent mechanical strength at high temperatures. This provides better thermal protection for re-entry conditions with high heating rates. The materials incorporate thermoplastic polymer segments that are uniformly distributed throughout, and chemically bonded to the phenolic network. Phenolic resin polymers are a class of widely used thermosetting polymers. Their numerous advantages include excellent heat, radiation, corrosion/chemical resistances, and being flame retardant. They are low cost and have versatile processing/manufacturing methods.",
+    "category": "Materials and Coatings",
+    "center": "ARC"
+  },
+  {
+    "id": "MFS-TOPS-44",
+    "case_number": "MFS-TOPS-44",
+    "title": "Crystal-free Formation of Non-Oxide Optical Fiber",
+    "abstract": "Researchers at NASA Marshall Space Flight Center have devised a method for the creation of crystal-free nonoxide optical fiber preforms. Non-oxide fiber optics are extensively used in infrared transmitting applications such as communication systems, chemical sensors, and laser fiber guides for cutting, welding and medical surgery. However, some of these glasses are very susceptible to crystallization. Even small crystals can lead to light scatter and a high attenuation coefficient, limiting their usefulness. NASA has developed a new method of non-oxide fiber formation that uses axial magnetic fields to suppress crystallization. The resulting non-oxide fibers are crystal free and have lower signal attenuation rates than silica based optical fibers.",
+    "category": "Optics",
+    "center": "MSFC"
+  }
+]

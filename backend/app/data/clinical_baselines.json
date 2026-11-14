@@ -1,0 +1,450 @@
+{
+  "generated_at_utc": "2026-11-14T13:32:23.181381+00:00",
+  "human_clinical_baselines": {
+    "bun_mg_dl": {
+      "clinical_range_min": 7.0,
+      "clinical_range_max": 25.0,
+      "pre_flight": {
+        "n": 12,
+        "mean": 19.4167,
+        "std": 3.5022,
+        "min": 14.0,
+        "max": 26.0
+      },
+      "post_flight_r1": {
+        "n": 4,
+        "mean": 21.25,
+        "std": 3.4034,
+        "min": 18.0,
+        "max": 26.0
+      },
+      "r1_vs_pre_pct_change": 9.44
+    },
+    "calcium_mg_dl": {
+      "clinical_range_min": 8.6,
+      "clinical_range_max": 10.4,
+      "pre_flight": {
+        "n": 12,
+        "mean": 9.825,
+        "std": 0.3545,
+        "min": 9.3,
+        "max": 10.3
+      },
+      "post_flight_r1": {
+        "n": 4,
+        "mean": 9.525,
+        "std": 0.2754,
+        "min": 9.2,
+        "max": 9.8
+      },
+      "r1_vs_pre_pct_change": -3.05
+    },
+    "creatinine_mg_dl": {
+      "clinical_range_min": 0.5,
+      "clinical_range_max": 1.35,
+      "pre_flight": {
+        "n": 12,
+        "mean": 1.07,
+        "std": 0.148,
+        "min": 0.83,
+        "max": 1.37
+      },
+      "post_flight_r1": {
+        "n": 4,
+        "mean": 1.0275,
+        "std": 0.1271,
+        "min": 0.89,
+        "max": 1.15
+      },
+      "r1_vs_pre_pct_change": -3.97
+    },
+    "glucose_mg_dl": {
+      "clinical_range_min": 65.0,
+      "clinical_range_max": 99.0,
+      "pre_flight": {
+        "n": 12,
+        "mean": 75.3333,
+        "std": 11.2842,
+        "min": 56.0,
+        "max": 100.0
+      },
+      "post_flight_r1": {
+        "n": 4,
+        "mean": 93.25,
+        "std": 8.6554,
+        "min": 83.0,
+        "max": 103.0
+      },
+      "r1_vs_pre_pct_change": 23.78
+    },
+    "hematocrit_pct": {
+      "clinical_range_min": 35.0,
+      "clinical_range_max": 50.0,
+      "pre_flight": {
+        "n": 12,
+        "mean": 43.3,
+        "std": 4.4491,
+        "min": 35.9,
+        "max": 50.0
+      },
+      "post_flight_r1": {
+        "n": 4,
+        "mean": 42.425,
+        "std": 4.9412,
+        "min": 36.4,
+        "max": 48.3
+      },
+      "r1_vs_pre_pct_change": -2.02
+    },
+    "hemoglobin_g_dl": {
+      "clinical_range_min": 11.7,
+      "clinical_range_max": 17.1,
+      "pre_flight": {
+        "n": 12,
+        "mean": 14.375,
+        "std": 1.7279,
+        "min": 11.5,
+        "max": 17.0
+      },
+      "post_flight_r1": {
+        "n": 4,
+        "mean": 14.2,
+        "std": 1.8655,
+        "min": 12.1,
+        "max": 16.5
+      },
+      "r1_vs_pre_pct_change": -1.22
+    },
+    "lymphocytes_cells_ul": {
+      "clinical_range_min": 850.0,
+      "clinical_range_max": 3900.0,
+      "pre_flight": {
+        "n": 12,
+        "mean": 2679.3333,
+        "std": 1397.6413,
+        "min": 1613.0,
+        "max": 6826.0
+      },
+      "post_flight_r1": {
+        "n": 4,
+        "mean": 1855.25,
+        "std": 310.2745,
+        "min": 1540.0,
+        "max": 2155.0
+      },
+      "r1_vs_pre_pct_change": -30.76
+    },
+    "neutrophils_cells_ul": {
+      "clinical_range_min": 1500.0,
+      "clinical_range_max": 7800.0,
+      "pre_flight": {
+        "n": 12,
+        "mean": 3849.0917,
+        "std": 1810.7631,
+        "min": 10.1,
+        "max": 6408.0
+      },
+      "post_flight_r1": {
+        "n": 4,
+        "mean": 3657.25,
+        "std": 815.9711,
+        "min": 2685.0,
+        "max": 4528.0
+      },
+      "r1_vs_pre_pct_change": -4.98
+    },
+    "platelets_k_ul": {
+      "clinical_range_min": 140.0,
+      "clinical_range_max": 400.0,
+      "pre_flight": {
+        "n": 12,
+        "mean": 244.4083,
+        "std": 86.4172,
+        "min": 12.9,
+        "max": 367.0
+      },
+      "post_flight_r1": {
+        "n": 4,
+        "mean": 269.5,
+        "std": 60.5337,
+        "min": 227.0,
+        "max": 359.0
+      },
+      "r1_vs_pre_pct_change": 10.27
+    },
+    "potassium_mmol_l": {
+      "clinical_range_min": 3.5,
+      "clinical_range_max": 5.3,
+      "pre_flight": {
+        "n": 12,
+        "mean": 3.9167,
+        "std": 0.3538,
+        "min": 3.3,
+        "max": 4.6
+      },
+      "post_flight_r1": {
+        "n": 4,
+        "mean": 3.725,
+        "std": 0.6076,
+        "min": 3.0,
+        "max": 4.4
+      },
+      "r1_vs_pre_pct_change": -4.89
+    },
+    "sodium_mmol_l": {
+      "clinical_range_min": 135.0,
+      "clinical_range_max": 146.0,
+      "pre_flight": {
+        "n": 12,
+        "mean": 140.25,
+        "std": 1.6583,
+        "min": 138.0,
+        "max": 143.0
+      },
+      "post_flight_r1": {
+        "n": 4,
+        "mean": 138.0,
+        "std": 1.4142,
+        "min": 137.0,
+        "max": 140.0
+      },
+      "r1_vs_pre_pct_change": -1.6
+    },
+    "wbc_k_ul": {
+      "clinical_range_min": 3.8,
+      "clinical_range_max": 10.8,
+      "pre_flight": {
+        "n": 12,
+        "mean": 7.5333,
+        "std": 1.8573,
+        "min": 5.4,
+        "max": 10.6
+      },
+      "post_flight_r1": {
+        "n": 4,
+        "mean": 6.4,
+        "std": 1.4166,
+        "min": 5.0,
+        "max": 8.1
+      },
+      "r1_vs_pre_pct_change": -15.04
+    }
+  },
+  "ocular_sans_patterns": {
+    "osd583_iop_mmhg": {
+      "space_flight": {
+        "n": 40,
+        "mean": 17.0083,
+        "std": 2.0762,
+        "min": 12.0,
+        "max": 21.3333
+      },
+      "ground_control": {
+        "n": 40,
+        "mean": 19.9833,
+        "std": 2.329,
+        "min": 15.0,
+        "max": 24.3333
+      },
+      "flight_vs_control_pct": -14.89
+    },
+    "osd680_optic_nerve_sheath_mm": {
+      "hindlimb_unloaded": {
+        "day_0": 1.5941,
+        "day_135": 1.6796,
+        "day_180": 1.7083,
+        "day_45": 1.9359,
+        "day_90": 2.0653
+      },
+      "control": {
+        "day_0": 1.6313,
+        "day_135": 1.625,
+        "day_180": 1.6714,
+        "day_45": 1.6344,
+        "day_90": 1.6103
+      }
+    },
+    "osd681_icp_torr": {
+      "hindlimb_unloaded": {
+        "day_0": 3.6167,
+        "day_120": 3.1724,
+        "day_150": 3.5218,
+        "day_180": 3.097,
+        "day_30": 4.3905,
+        "day_60": 4.4572,
+        "day_90": 4.2156
+      },
+      "control": {
+        "day_0": 3.9008,
+        "day_120": 3.4571,
+        "day_150": 3.4771,
+        "day_180": 1.825,
+        "day_30": 3.6964,
+        "day_60": 2.768,
+        "day_90": 3.153
+      }
+    },
+    "osd681_body_temp_c": {
+      "control": {
+        "baseline": 36.0317,
+        "day_120": 35.9103,
+        "day_150": 36.006,
+        "day_180": 35.7117,
+        "day_30": 35.9494,
+        "day_60": 35.7953,
+        "day_90": 36.0697,
+        "day_91": 35.567
+      },
+      "hindlimb_unloaded": {
+        "baseline": 35.9123,
+        "day_0": 35.9522,
+        "day_120": 36.025,
+        "day_150": 36.0356,
+        "day_180": 36.0945,
+        "day_30": 35.8654,
+        "day_60": 35.8167,
+        "day_90": 35.7872,
+        "day_91": 35.8597
+      }
+    }
+  },
+  "bone_muscle_patterns": {
+    "osd608_partial_gravity_trabecular_bmd_pct_change": {
+      "PWB100": {
+        "1 week": -4.7233,
+        "2 week": -5.9652,
+        "4 week": -4.8308
+      },
+      "PWB20": {
+        "1 week": -15.8464,
+        "2 week": -23.8045,
+        "4 week": -30.06
+      },
+      "PWB40": {
+        "1 week": -9.5667,
+        "2 week": -18.9542,
+        "4 week": -24.2
+      }
+    },
+    "microgravity_bone_comparisons": {
+      "OSD-351:cancellous_metaphysis_BV_TV_percent": {
+        "space_flight": {
+          "n": 23,
+          "mean": 10.6522,
+          "std": 6.4347,
+          "min": 3.1,
+          "max": 24.1
+        },
+        "ground_control": {
+          "n": 23,
+          "mean": 13.5522,
+          "std": 7.3167,
+          "min": 5.4,
+          "max": 23.5
+        },
+        "flight_vs_control_pct": -21.4
+      },
+      "OSD-489:trabecular_thickness_mm": {
+        "space_flight": {
+          "n": 8,
+          "mean": 0.0631,
+          "std": 0.0057,
+          "min": 0.0539,
+          "max": 0.0704
+        },
+        "ground_control": {
+          "n": 9,
+          "mean": 0.0712,
+          "std": 0.0069,
+          "min": 0.061,
+          "max": 0.0822
+        },
+        "flight_vs_control_pct": -11.38
+      }
+    }
+  },
+  "radiation_neuro_immune_patterns": {
+    "osd479_gcr_anxiety_epm_open_sec": {
+      "0_cGy": {
+        "n": 97,
+        "mean": 67.8099,
+        "std": 29.9101,
+        "min": 9.08,
+        "max": 143.88
+      },
+      "100_cGy": {
+        "n": 28,
+        "mean": 65.2955,
+        "std": 19.7504,
+        "min": 31.93,
+        "max": 103.3
+      },
+      "50_cGy": {
+        "n": 80,
+        "mean": 68.2929,
+        "std": 29.2452,
+        "min": 17.6,
+        "max": 127.92
+      }
+    },
+    "osd836_xray_unloading_center_sec": {
+      "0_gray": {
+        "n": 47,
+        "mean": 31.4702,
+        "std": 19.0335,
+        "min": 1.6,
+        "max": 81.8
+      },
+      "3_gray": {
+        "n": 26,
+        "mean": 46.1923,
+        "std": 52.041,
+        "min": 3.8,
+        "max": 285.8
+      },
+      "8_gray": {
+        "n": 24,
+        "mean": 27.0958,
+        "std": 18.427,
+        "min": 6.9,
+        "max": 70.6
+      }
+    },
+    "osd751_752_brain_tnf_alpha": {
+      "space_flight": {
+        "n": 4,
+        "mean": 0.0597,
+        "std": 0.0285,
+        "min": 0.0387,
+        "max": 0.1018
+      },
+      "ground_control": {
+        "n": 4,
+        "mean": 0.069,
+        "std": 0.0113,
+        "min": 0.0588,
+        "max": 0.0845
+      },
+      "flight_vs_control_pct": -13.48
+    }
+  },
+  "space_weather_and_orbit_patterns": {
+    "donki_2020_2026": {
+      "total_days": 2510,
+      "days_with_m_or_x_flare": 783,
+      "days_with_x_flare": 88,
+      "days_with_sep_storm": 101,
+      "days_with_kp_ge_5": 118,
+      "days_with_kp_ge_7": 35,
+      "p_sep_within_3d_given_x_flare": 0.409,
+      "p_kp_ge_5_within_3d_given_x_flare": 0.307
+    },
+    "iss_orbit_48h": {
+      "sample_points": 288,
+      "pct_time_in_saa": 5.9,
+      "pct_time_high_latitude": 14.24,
+      "pct_time_eclipsed": 37.5,
+      "daylight_eclipse_transitions_per_24h": 32.0
+    }
+  }
+}

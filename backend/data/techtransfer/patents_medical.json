@@ -1,0 +1,202 @@
+[
+  {
+    "id": "TOP2-246",
+    "case_number": "TOP2-246",
+    "title": "Portable Medical Diagnosis Instrument",
+    "abstract": "NASA has developed a  novel technology strategy called \"The NASA Analyzer\" that would provide comprehensive in-flight medical diagnostic capability in a compact, hand-held device for human deep-space missions such as Mars. Key features of the technology  include the ability to handle multiple sample types (breath, saliva, blood), and the ability to measure virtually any analyte, including future analytes as they emerge. The device provides both non-invasive and minimally invasive sampling capabilities, which will be required during long-duration exploration missions. Breath and saliva are fully non-invasive and can provide critical health assessment information very rapidly. From small blood samples, information about macromolecular analytes as well as blood cell counts can be obtained. The device consists of four cutting-edge technologies integrated into a single compact medical diagnostic tool with wireless (e.g., smart phone) capability. In addition to space applications, this innovative technology will very likely have important spin-offs in medicine and public health on Earth.",
+    "category": "Instrumentation",
+    "center": "ARC"
+  },
+  {
+    "id": "MSC-TOPS-45",
+    "case_number": "MSC-TOPS-45",
+    "title": "Robonaut 2: Medical Opportunities",
+    "abstract": "Researchers at the NASA Johnson Space Center (JSC), in collaboration with General Motors and Oceaneering, have designed a state-of-the-art, highly dexterous, humanoid robot: Robonaut 2 (R2). R2 is made up of multiple component technologies and systems making up nearly 50 patented and patent pending technologies with the potential to be game-changers in multiple industries including the medical industry.  R2 technologies can aid in a variety of medical applications, ranging from telemedicine to handling the logistics of medical procedures. These activities can be done in autonomous mode or in teleoperation mode, where the robot is controlled by a technician or physician. This type of operation would be advantageous during situations where a biomedical hazard poses risks to humans, such as a contagious outbreak or a combat situation.  For more routine daily use, R2 could function as an assistant to the hospital staff.\n\nThis NASA Technology is available for your company to license and develop into a commercial product.  NASA does not manufacture products for commercial sale.",
+    "category": "Health Medicine and Biotechnology",
+    "center": "JSC"
+  },
+  {
+    "id": "TOP2-169",
+    "case_number": "TOP2-169",
+    "title": "Nanosensor Array for Medical Diagnoses",
+    "abstract": "NASA has developed an innovative approach to improve the quality and convenience of medical diagnosis, and data transmission for immediate therapy. The new technology uses a network of nanochemical sensors on a silicon chip combined with a monitoring system composed of humidity, temperature, and pressure/flow sensors for real-time chemical and physical properties measurement of human breath for non-invasive and low-cost medical diagnosis. No such technology exists in the market today. Although many research activities are ongoing, NASAs technology is readily available for this application. With a detection range of parts per million (ppm) to parts per billion (ppb) this technology,  called a nanosensor array chip,  provides a highly-sensitive, low-power, and compact tool for in-situ and real time analysis. It changes the way and time decisions are made to help both patient and medical care provider to minimize their cost, optimize resources,  reduce risk, and cut the amount of time needed for conducting a response.",
+    "category": "Health Medicine and Biotechnology",
+    "center": "ARC"
+  },
+  {
+    "id": "GSC-TOPS-51",
+    "case_number": "GSC-TOPS-51",
+    "title": "Miniaturized High-Speed Modulated X-Ray Source (MXS)",
+    "abstract": "This miniaturized X-ray source can be modulated in intensity from completely off to full intensity, over 100 keV, in subnanosecond timescales. The high speed switching capability and miniature size make possible many new technologies including X-ray-based communication, compact time resolved X-ray diffraction, novel X-ray fluorescence instruments, low precise dose medical X-rays, and more.",
+    "category": "Optics",
+    "center": "GSFC"
+  },
+  {
+    "id": "MSC-TOPS-132",
+    "case_number": "MSC-TOPS-132",
+    "title": "Portable Slide Staining System for Microscopy",
+    "abstract": "Innovators at NASA Johnson Space Center have developed a handheld slide staining system designed to support medical, research or environ-mental monitoring. Although deployed aboard the International Space Station to work in conjunction with NASA\u2019s high-powered handheld microscope in the absence of gravity, the system may be applicable to all known staining procedures for terrestrial field and lab microscopes.\n\nThis novel system is comprised of two primary components which are entirely self-contained when assembled. One component, the dispenser, is designed with an adjustable reagent sponge delivery system that not only serves as a containment unit for fluids, but whose volume allows for multiple uses until the reagents from the dispenser are depleted. The sponges can be replenished with commercial off-the-shelf reagents. The second component, the slide staining device, traps and seals the speci-men slide which then receives the titrated reagent from the dispenser. \n\nThis technology was derived for space-based missions where a speci-men\u2019s return to Earth for rapid microscopic analysis would not be viable. A situation could exist within a spacecraft necessitating a rapid in situ medical diagnosis on a crewmember in determining whether an infection is present, conducting a white blood cell count, determining blood platelet concentration, and monitoring the effects of solar particle events as it applies to hematological disturbances.",
+    "category": "Health Medicine and Biotechnology",
+    "center": "JSC"
+  },
+  {
+    "id": "LAR-TOPS-315",
+    "case_number": "LAR-TOPS-315",
+    "title": "Remote, Noninvasive, Cardiac Activity Tracer (RENCAT)",
+    "abstract": "NASA Langley Research Center has developed a novel laser vibrometer sensor for monitoring cardiac activities remotely and non-invasively, specifically heart functions of valve/chamber opening and closing cycles (cardiac cycles). The device provides precise magnitude and timing information, noninvasively and away from the heart region without interference by patient garments.",
+    "category": "Instrumentation",
+    "center": "LARC"
+  },
+  {
+    "id": "DRC-TOPS-25",
+    "case_number": "DRC-TOPS-25",
+    "title": "Enhanced Fabrication Improves Temperature Sensing in Cryogenic Humid Environments",
+    "abstract": "Researchers at NASA's Armstrong Flight Research Center have developed a new manufacturing process that improves the ability of fiber optic sensing systems to measure temperature and liquid levels when operating in humid environments. The process involves eliminating moisture from the optical fiber coating, then completing the sensor assembly within humidity-controlled conditions. The resulting sensor hardware provides precise and accurate measurements even when operating in a humid environment. Originally designed to monitor a rocket's cryogenic fuel levels in conjunction with NASA's patented Fiber Optic Sensing System (FOSS), this technology can be used in many industrial, food, and medical applications.",
+    "category": "Sensors",
+    "center": "DFRC"
+  },
+  {
+    "id": "MSC-TOPS-38",
+    "case_number": "MSC-TOPS-38",
+    "title": "Robonaut 2 Technologies",
+    "abstract": "Researchers at NASA's Johnson Space Center (JSC), in collaboration with General Motors and Oceaneering, have designed a state-of-the-art, highly dexterous, humanoid robot: Robonaut 2 (R2). R2 is made up of multiple component technologies and systems: vision systems, image recognition systems, sensor integrations, tendon hands, control algorithms, and much more. R2's nearly 50 patented and patent-pending technologies have the potential to be game-changers in multiple industries, including logistics and distribution, medical and industrial robotics, as well as hazardous, toxic, or remote environments.\n\nThis NASA Technology is available for your company to license and develop into a commercial product.  NASA does not manufacture products for commercial sale.",
+    "category": "Robotics Automation and Control",
+    "center": "JSC"
+  },
+  {
+    "id": "DRC-TOPS-8",
+    "case_number": "DRC-TOPS-8",
+    "title": "Real-Time, High-Resolution Terrain Information in Computing-Constrained Environments",
+    "abstract": "Data adaptive algorithms are the critically enabling technology for automatic collision avoidance system efforts at NASA's Armstrong Flight Research Center. These Armstrong-developed algorithms provide an extensive and highly efficient encoding process for global-scale digital terrain maps (DTMs) along with a real-time decoding process to locally render map data. Available for licensing, these terrain-mapping algorithms are designed to be easily integrated into an aircraft's existing onboard computing environment or into an electronic flight bag (EFB) or mobile device application. In addition to its use within next-generation collision avoidance systems, the software can be adapted for use in a wide variety of applications, including aerospace satellites, automobiles, scientific research, marine charting systems, and medical devices.",
+    "category": "Information Technology and Software",
+    "center": "DFRC"
+  },
+  {
+    "id": "GSC-TOPS-7",
+    "case_number": "GSC-TOPS-7",
+    "title": "Automatic Extraction of Planetary Image Features and Multi-Sensor Image Registration",
+    "abstract": "Many automatic feature extraction methods have been proposed and utilized for Earth remote sensing images, but these methods are not always applicable to Lunar data that often present low contrast and uneven illumination characteristics. The boundary of Lunar features is not always well defined, and it is therefore somewhat difficult to segment and characterize Lunar images. With the large quantity of new Lunar data that will be collected in the next few years, it is important to implement an automated method to extract these features, and to perform tasks such as image registration.  This technology can be generalized for commercial applications with similar restraints such as medical imaging, where low contrast and uneven illumination image characteristics often pose issues.",
+    "category": "Information Technology and Software",
+    "center": "GSFC"
+  },
+  {
+    "id": "MFS-TOPS-44",
+    "case_number": "MFS-TOPS-44",
+    "title": "Crystal-free Formation of Non-Oxide Optical Fiber",
+    "abstract": "Researchers at NASA Marshall Space Flight Center have devised a method for the creation of crystal-free nonoxide optical fiber preforms. Non-oxide fiber optics are extensively used in infrared transmitting applications such as communication systems, chemical sensors, and laser fiber guides for cutting, welding and medical surgery. However, some of these glasses are very susceptible to crystallization. Even small crystals can lead to light scatter and a high attenuation coefficient, limiting their usefulness. NASA has developed a new method of non-oxide fiber formation that uses axial magnetic fields to suppress crystallization. The resulting non-oxide fibers are crystal free and have lower signal attenuation rates than silica based optical fibers.",
+    "category": "Optics",
+    "center": "MSFC"
+  },
+  {
+    "id": "MSC-TOPS-29",
+    "case_number": "MSC-TOPS-29",
+    "title": "Filtering Molecules with Nanotube Technology",
+    "abstract": "Innovators at NASA's Johnson Space Center have identified a method to create a filtration device to eliminate contaminants from water supplies. Originally developed to purify wastewater for reuse aboard the International Space Station, the innovation is applicable to numerous situations on Earth where there is a need to collect potable, medical-grade water from a contaminated water supply. The unique aspect of the technology is its use of acoustics rather than pressure to drive water through small-diameter carbon nanotubes. The invention requires less power than conventional filtration systems and is well-suited to a variety of water processing needs.\n\nThis NASA patent is available for your company to license, mature the technology and develop into a commercial product.  NASA does not manufacture products for commercial sale.",
+    "category": "Health Medicine and Biotechnology",
+    "center": "JSC"
+  },
+  {
+    "id": "LAR-TOPS-61",
+    "case_number": "LAR-TOPS-61",
+    "title": "Computational Visual Servo",
+    "abstract": "NASA's Langley Research Center researchers have developed an automatic measurement and control method for smart image enhancement. Pilots, doctors, and photographers will benefit from this innovation that offers a new approach to image processing. Initial advantages will be seen in improved\nmedical imaging and nighttime photography. Standard image enhancement software is unable to improve poor quality conditions such as low light, poor clarity, and fog-like conditions. The technology consists of a set of comprehensive methods that perform well across a wide range of conditions encountered in arbitrary images. Conditions include large variations in lighting, scene characteristics, and atmospheric (or underwater) turbidity variations. NASA is seeking market insights on commercialization of this new technology, and welcomes interest from potential producers, users, and licensees.",
+    "category": "Information Technology and Software",
+    "center": "LARC"
+  },
+  {
+    "id": "LAR-TOPS-350",
+    "case_number": "LAR-TOPS-350",
+    "title": "High Atomic Number Coatings for Fabrics",
+    "abstract": "NASA Langley Research Center has developed an innovation to promote the adhesion and improve the durability of high atomic number metal coatings on oxygen- or hydroxyl-rich surfaces. This new approach is useful for building radiation shields via the Z-grading method, the process of layering metal materials with different atomic numbers to provide radiation protection for protons, electrons, and x-rays. This invention enables Z-graded coatings to be applied to lower cost and lighter weight substrates, such as glass fiber fabrics, while maintaining the durability and flexibility needed for spacecraft electronics, radiation protective clothing, and other applications.",
+    "category": "Materials and Coatings",
+    "center": "LARC"
+  },
+  {
+    "id": "TOP2-323",
+    "case_number": "TOP2-323",
+    "title": "Hybrid carbon nanotube-gold nanoparticle composite for Nitric Oxide (NO) detection",
+    "abstract": "Nitric Oxide (NO) detection has a wide application from environmental monitoring, industrial process control, combustion studies, oceanographic study to medical diagnoses. NO is a highly unstable, reactive gaseous molecule, making its detection challenging, especially at low concentrations and in high humidity environments.  While some commonly used techniques to monitor NO gas are suitable for in vivo detection in solutions, others are bulky and complex despite being sensitive and accurate for in situ monitoring.  NASA Ames Research Center has developed a novel, cutting-edge chemiresistive sensor technology that can selectively detect NO in real time, with a small footprint, handheld design, easy operation, and low power consumption.  The innovative composite films, crafted from functionalized single-walled carbon nanotubes (SWCNTs) and gold nanoparticles (AuNPs), redefine the landscape of gas sensing.",
+    "category": "Sensors",
+    "center": "ARC"
+  },
+  {
+    "id": "DRC-TOPS-26",
+    "case_number": "DRC-TOPS-26",
+    "title": "Adaptive Spatial Resolution Enables Focused Fiber Optic Sensing",
+    "abstract": "This advanced fiber optic sensing innovation developed at NASA's Armstrong Flight Research Center offers a unique combination of high-resolution processing and flexibility. The algorithm was originally developed to enhance Armstrong's multi-patented Fiber Optic Sensing System (FOSS). With over 2,000 sensors per fiber, FOSS enables thousands of high-resolution measurements at once, including strain, shape, temperature, pressure, and more. The new adaptive spatial resolution innovation allows users to specify resolution and accuracy requirements. By making it possible to optimize data transmission bandwidth and adjust processing to minimize extraneous computations, this technology effectively provides the right resolution in the right place at the right time. This new capability opens up myriad new applications for fiber optic sensing systems, including in civil engineering, transportation, oil and gas, medical, aerospace, and many more industries.",
+    "category": "Sensors",
+    "center": "DFRC"
+  },
+  {
+    "id": "LAR-TOPS-116",
+    "case_number": "LAR-TOPS-116",
+    "title": "Electric Field Imaging System",
+    "abstract": "NASA Langley Research Center's Electric Field Imaging (EFI) system is the only noncontact method capable of quantitatively measuring the magnitude and direction of electrostatic fields in near- and far-field applications. Based on low-cost, commercially available components, the EFI system uses\nmeasurement of very low-current, human-safe electric fields to construct a three-dimensional image of objects and people based on their dielectric properties. This platform technology, originally developed for measurement of the efficacy of electrical shielding around cables, could be optimized for a variety of applications, including medical imaging, security and detection, weather and natural disaster prediction, and nondestructive evaluation of composites and insulators. The EFI system has the potential to offer a lower-cost, portable, and safer alternative to the imaging systems currently used in these applications.",
+    "category": "Sensors",
+    "center": "LARC"
+  },
+  {
+    "id": "DRC-TOPS-24",
+    "case_number": "DRC-TOPS-24",
+    "title": "Shape Sensing Innovations Dramatically Improve Structural Design Tools",
+    "abstract": "Advances in fiber optic shape sensing developed at NASA's Armstrong Flight Research Center are enabling the development of next-generation flexible aircraft wings that maximize structural efficiency and reduce weight, improving fuel efficiency. These same advances will help engineers design stronger bridges, buildings, ocean vessels, and more. Fast algorithms use distributed fiber optic wavelength data to determine shape deformation of large curved and flexible structures. Dramatically improving upon earlier two- and three-dimensional (2D and 3D) shape-sensing tools by tracking multiple orientation angles&#8212;displacement, twist, and rotation&#8212;at the same time, Armstrong's technology converts distributed surface strain data into deformed shapes that can be displayed and analyzed in real time. Developed to help NASA researchers characterize complex test articles and design new aerospace structures, the innovations also will be useful for multiple applications in the transportation, infrastructure, and medical industries.",
+    "category": "Sensors",
+    "center": "DFRC"
+  },
+  {
+    "id": "MSC-TOPS-81",
+    "case_number": "MSC-TOPS-81",
+    "title": "Split-Ring Torque Sensor",
+    "abstract": "Innovators at the NASA Johnson Space Center (JSC), in collaboration with Oceaneering and The Florida Institute for Human and Machine Cognition, have developed the Split-Ring Torque Sensor (SRTS), a device that uses optical sensors to measure the position, velocity, and torque of a rotating system. The SRTS was created for use in NASA's X1 robotic exoskeleton, an in-space, wearable exercise machine designed to supply resistance against leg movement for NASA astronauts in future missions. The X1 exoskeleton implements the SRTS in its belt-drive series elastic actuator (SEA) and provides a lower profile and lower weight system than competing designs. The SRTS offers greater flexibility in tailoring for specific applications and requirements. In addition to its applications in robotics, the SRTS has potential uses in medical fields including prosthetics, aerospace & defense applications, automotive applications, testing & measurement, and industrial markets.",
+    "category": "Sensors",
+    "center": "JSC"
+  },
+  {
+    "id": "LAR-TOPS-79",
+    "case_number": "LAR-TOPS-79",
+    "title": "Highly Accurate Position Detection and Shape Sensing with Fiber Optics",
+    "abstract": "NASA's Langley Research Center has demonstrated a patent pending method and apparatus for determining the position, in three dimensions, of any point on an optical fiber. The new method uses low reflectance Fiber Bragg Grating (FBG) strain sensors in a multi-core fiber to determine how any point\nalong that fiber is positioned in space. The characteristics of optical fibers and the FBGs vary with curvature, and by sensing the relative change of FBGs in each of three or more fiber cores, the three-dimensional change in position can be determined. By using this method in monitoring applications where optical fibers can be deployed--such as in structures, medical devices, or robotics--precise deflection, end position, and location can be determined in near real time. This innovative position detection method offers 10 times greater positional accuracy than comparable optical techniques.",
+    "category": "Instrumentation",
+    "center": "LARC"
+  },
+  {
+    "id": "TOP2-300",
+    "case_number": "TOP2-300",
+    "title": "Room temperature oxygen sensors",
+    "abstract": "Oxygen (O2) sensors are used in a wide array of applications, including electronic fuel injection and emissions control in the automotive industry, for monitoring oxygen levels in controlled environments, such as in space craft or space suits, for oxygen monitoring in medical and pharmaceutical applications, and many more. Traditional oxygen sensors, including potentiometric and amperometric sensor designs, have significant drawbacks, as metal oxide gas sensors require high temperature operation of about 300\u00b0C, and suffer from high power consumption. NASA Ames Research Center has developed novel oxygen sensors made of a hybrid material comprising graphene and titanium dioxide (TiO2) that is capable of detecting O2 gas at room temperature and ambient pressure. The sensors have fast response and recovery times and can also be used to detect ozone. The sensors can be integrated into wearable-sized Internet of Things (IoT) devices.",
+    "category": "Sensors",
+    "center": "ARC"
+  },
+  {
+    "id": "TOP2-328",
+    "case_number": "TOP2-328",
+    "title": "Systems and methods employing nanomaterial sensors for detecting conditions impacting a Volatile Organic Compounds (VOCs) profile in breath",
+    "abstract": "NASA Ames had previously developed a nanosensor array that uses a sample of patient breath for medical diagnosis. (See TOP2-169.) However, the specific materials that can be used had not been previously identified. NASA Ames has made further developments to enhance the capabilities of the technology to detect a variety of Volatile Organic Compounds (VOCs). A highly sensitive sensor array featuring 64 chemically sensitive nanomaterials can accurately identify various health and biological conditions, such as detection of Covid-19 in humans. The technology can also provide a non-invasive approach for sensing biological conditions in dairy and animal husbandry. 64 distinct sensing nanomaterials, including nanotubes, composite nanotubes, nanoparticle-decorated (doped) nanotubes, and polymer-coated nanotubes, having the greatest sensitivity to VOCs in concentrations as low as 2 to 5 ppb have been identified, and exemplary formulations for each identified nanomaterial have been developed.",
+    "category": "Sensors",
+    "center": "ARC"
+  },
+  {
+    "id": "LEW-TOPS-71",
+    "case_number": "LEW-TOPS-71",
+    "title": "Low-Power Charged Particle Detector",
+    "abstract": "Innovators at NASA's Glenn Research Center have developed a miniature, solid-state radiation detector that can be used in situations where compact size, low weight, and low power consumption are required. Conventional scintillator-based charged particle counters rely upon a glass photomultiplier tube (PMT) to translate light energy from the radiation source into an electrical signal. Because PMTs are bulky, fragile, and require high voltages to operate, they are not well-suited for harsh environments. \n\nGlenn's technology is solid state, thus eliminating PMTs, which means the device can operate in cramped, harsh, and low-power environments. In addition, because the detector uses a low-voltage, UV-sensitive photodiode, a wave shifter is not required, improving efficiency and further minimizing weight and bulk. Originally developed for space exploration, this compact, robust particle counter can also be used in medical dosimetry, mining, oil and gas exploration, nuclear facility monitoring, and more.",
+    "category": "Environment",
+    "center": "GRC"
+  },
+  {
+    "id": "LEW-TOPS-182",
+    "case_number": "LEW-TOPS-182",
+    "title": "CryoQuad",
+    "abstract": "Meeting the cooling demands of megawatt-scale superconducting systems, high-power fuel cells, and other cryogenic applications has long been limited by the mass, complexity, and capacity of traditional cryocoolers. CryoQuad, developed by innovators at NASA Glenn Research Center, is a high-efficiency cryogenic cooling system capable of operating on thermoacoustic principles, waste heat from fuel cells, or other compatible heat sources. Its flexible architecture eliminates moving parts, reduces weight, and delivers reliable, high-capacity cooling for transportation, aerospace, medical, and industrial systems.\n\nFuture superconducting transportation platforms, including automobiles, maritime vessels, and aircraft, promise major gains in energy efficiency and range. However, superconductors only exhibit zero electrical resistance at extremely low temperatures (below 50 K). Without effective cryogenic cooling, their performance rapidly degrades, erasing efficiency benefits. CryoQuad provides the scalable, reliable cooling required to maintain superconductivity under operational loads and unlock the full performance potential of these advanced platforms.",
+    "category": "Power Generation and Storage",
+    "center": "GRC"
+  },
+  {
+    "id": "LAR-TOPS-354",
+    "case_number": "LAR-TOPS-354",
+    "title": "Flexible Lightweight Radiation Shielding",
+    "abstract": "Lead-filled aprons are currently used for atomic number (Z)-grade radiation shielding in the medical industry to protect personnel from hazardous gamma radiation. These apron garments are made with lead-filled elastomeric sheets encased in polymeric fabrics and are both heavy and bulky to meet necessary shielding requirements. In addition, there are environmental safety concerns surrounding disposal of these garments due to their lead content. An innovator at NASA Langley Research Center has developed a novel method for making thin, lightweight radiation shielding that can be sprayed or melted onto common textiles used in clothing such as cotton, nylon, polyester, Nomex and Kevlar. The lead-free shielding is more effective at blocking radiation as compared with similar thicknesses of lead while being up to 25% lighter. The shielding can also be formed into a variety of garments such as shirts, vests, jackets, and pants with significantly greater comfort and conformity than the aprons currently in use.",
+    "category": "Materials and Coatings",
+    "center": "LARC"
+  }
+]

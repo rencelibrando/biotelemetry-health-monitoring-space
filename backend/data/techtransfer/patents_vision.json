@@ -1,0 +1,122 @@
+[
+  {
+    "id": "TOP2-322",
+    "case_number": "TOP2-322",
+    "title": "Vision-based Approach and Landing System (VALS)",
+    "abstract": "There are certain situations when landing an Advanced Air Mobility (AAM) aircraft is required to be performed without assistance from GPS data.  For example, AAM aircraft flying in an urban environment with tall buildings and narrow canyons may affect the ability of the AAM aircraft to effectively use GPS to access a landing area. Incorporating a vision-based navigation method, NASA Ames has developed a novel Alternative Position, Navigation, and Timing (APNT) solution for AAM aircraft in environments where GPS is not available. The technology employs an aircraft-mounted camera to visually detect known features in the landing area, using a computer vision method called Coplanar Pose from Orthography and Scaling with Iterations (COPOSIT) to determine the position and orientation of the aircraft relative to the features detected from the camera images, and an extended Kalman filter to predict and correct the estimated position, velocity, and orientation of the aircraft.",
+    "category": "Aerospace",
+    "center": "ARC"
+  },
+  {
+    "id": "MSC-TOPS-114",
+    "case_number": "MSC-TOPS-114",
+    "title": "Computer Vision Lends Precision to Robotic Grappling",
+    "abstract": "Innovators at NASA Johnson Space Center (JSC) have developed computer vision software that derives target posture determinations quickly and then instructs an operator how to properly align a robotic end-effector with a target that they are trying to grapple. As an added benefit, the software\u2019s object identification capability can also help detect physical defects on targets.\n\nThis technology was originally created to aid robotic arm operators aboard the International Space Station (ISS) that relied more heavily upon grappling instructional maneuvers derived from flight controllers on the ground at JSC\u2019s Mission Control Center (MCC). Despite the aid of computer-based models to predict the alignment of both robotic arm and target, iterative realignment procedures were often required to correct botched grapple operations, costing valuable time. \n\nTo solve this problem, NASA\u2019s computer vision software analyzes the live camera feed from the robotic arm\u2019s single borescope camera and provides the operator with the delta commands required for an ideal grasp operation. This process is aided by a machine learning component that monitors the camera feed for any of the ISS\u2019s potential target fixtures. Once a target fixture is identified, proper camera and target parameters are automatically sequenced to prepare for grasping operations.",
+    "category": "Information Technology and Software",
+    "center": "JSC"
+  },
+  {
+    "id": "LAR-TOPS-347",
+    "case_number": "LAR-TOPS-347",
+    "title": "Reflection-Reducing Imaging System for Machine Vision Applications",
+    "abstract": "NASA researchers have developed a compact, cost-effective imaging system using a co-linear, high-intensity LED illumination unit to minimize window reflections for background-oriented schlieren (BOS) and machine vision measurements. The imaging system \u2013 tested in NASA wind tunnels \u2013 can reduce or eliminate shadows that occur when using many existing BOS and photogrammetric measurement systems; these shadows occur in existing systems for a variety of reasons, including the severe back-reflections from wind tunnel viewing port windows and variations in the refractive index of the imaged volume. Due to its compact size, the system can easily fit in the space behind a typical wind tunnel\u2019s view port. As a cost-effective, compact imaging system, NASA\u2019s technology could be deployed for use in BOS, Tomo BOS, photogrammetric, and general machine vision applications.",
+    "category": "Optics",
+    "center": "LARC"
+  },
+  {
+    "id": "LAR-TOPS-168",
+    "case_number": "LAR-TOPS-168",
+    "title": "Super Resolution 3D Flash LIDAR",
+    "abstract": "NASA Langley Research Center has developed 3-D imaging technologies (Flash LIDAR) for real-time terrain mapping and synthetic vision-based navigation. To take advantage of the information inherent in a sequence of 3-D images acquired at video rates, NASA Langley has also developed an embedded image processing algorithm that can simultaneously correct, enhance, and derive relative motion, by processing this image sequence into a high resolution 3-D synthetic image. Traditional scanning LIDAR techniques generate an image frame by raster scanning an image one laser pulse per pixel at a time, whereas Flash LIDAR acquires an image much like an ordinary camera, generating an image using a single laser pulse. The benefits of the Flash LIDAR technique and the corresponding image to image processing enable autonomous vision based guidance and control for robotic systems. The current algorithm offers up to eight times image resolution enhancement and well as a 6 degree of freedom state vector of motion in the image frame.",
+    "category": "Sensors",
+    "center": "LARC"
+  },
+  {
+    "id": "MSC-TOPS-38",
+    "case_number": "MSC-TOPS-38",
+    "title": "Robonaut 2 Technologies",
+    "abstract": "Researchers at NASA's Johnson Space Center (JSC), in collaboration with General Motors and Oceaneering, have designed a state-of-the-art, highly dexterous, humanoid robot: Robonaut 2 (R2). R2 is made up of multiple component technologies and systems: vision systems, image recognition systems, sensor integrations, tendon hands, control algorithms, and much more. R2's nearly 50 patented and patent-pending technologies have the potential to be game-changers in multiple industries, including logistics and distribution, medical and industrial robotics, as well as hazardous, toxic, or remote environments.\n\nThis NASA Technology is available for your company to license and develop into a commercial product.  NASA does not manufacture products for commercial sale.",
+    "category": "Robotics Automation and Control",
+    "center": "JSC"
+  },
+  {
+    "id": "GSC-TOPS-102",
+    "case_number": "GSC-TOPS-102",
+    "title": "FlashPose: Range and intensity image-based terrain and vehicle relative pose estimation algorithm",
+    "abstract": "NASA Goddard Space Flight Center has developed FlashPose, a relative navigation measurement software and VHDL, for space flight missions requiring vehicle-relative and terrain-relative navigation and control. FlashPose processes real-time or recorded range and intensity images from 3D imaging sensors such as Lidars, and compares them to known models of the target surfaces to output the position and orientation of the known target relative to the sensor coordinate frame.\n\nFlashPose provides a relative navigation (pose estimation) capability to enable autonomous rendezvous and capture of non-cooperative space-borne targets. \n\nAll algorithmic processing takes place in the software application, while custom FPGA firmware interfaces directly with the Ball Vision Navigation System (VNS) Lidar and provides imagery to the algorithm.",
+    "category": "Robotics Automation and Control",
+    "center": "GSFC"
+  },
+  {
+    "id": "MSC-TOPS-44",
+    "case_number": "MSC-TOPS-44",
+    "title": "Robonaut 2: Hazardous Environments",
+    "abstract": "Researchers at the NASA Johnson Space Center (JSC) in collaboration with General Motors and Oceaneering, have designed a state-of-the-art, highly dexterous, humanoid robot: Robonaut 2 (R2). R2 is made up of multiple systems and sub-components: vision systems, image recognition systems, sensors, control algorithms, and much more. R2's nearly 50 patented and patent-pending technologies have the potential to be game-changers in multiple industries. One of the most promising application for the R2 technologies is in the area of hazardous environments. R2 has the capability to work in remote locations separate from the human controller.  R2 can function autonomously or it can be controlled by direct teleoperations.\n\nThis NASA Technology is available for your company to license and develop into a commercial product.  NASA does not manufacture products for commercial sale.",
+    "category": "Environment",
+    "center": "JSC"
+  },
+  {
+    "id": "MSC-TOPS-45",
+    "case_number": "MSC-TOPS-45",
+    "title": "Robonaut 2: Medical Opportunities",
+    "abstract": "Researchers at the NASA Johnson Space Center (JSC), in collaboration with General Motors and Oceaneering, have designed a state-of-the-art, highly dexterous, humanoid robot: Robonaut 2 (R2). R2 is made up of multiple component technologies and systems making up nearly 50 patented and patent pending technologies with the potential to be game-changers in multiple industries including the medical industry.  R2 technologies can aid in a variety of medical applications, ranging from telemedicine to handling the logistics of medical procedures. These activities can be done in autonomous mode or in teleoperation mode, where the robot is controlled by a technician or physician. This type of operation would be advantageous during situations where a biomedical hazard poses risks to humans, such as a contagious outbreak or a combat situation.  For more routine daily use, R2 could function as an assistant to the hospital staff.\n\nThis NASA Technology is available for your company to license and develop into a commercial product.  NASA does not manufacture products for commercial sale.",
+    "category": "Health Medicine and Biotechnology",
+    "center": "JSC"
+  },
+  {
+    "id": "MSC-TOPS-46",
+    "case_number": "MSC-TOPS-46",
+    "title": "Robonaut 2: Logistics and Distribution",
+    "abstract": "Researchers at the NASA Johnson Space Center (JSC), in collaboration with General Motors and Oceaneering, have designed a state-of-the-art, highly dexterous, humanoid robot: Robonaut 2 (R2). R2's nearly 50 patented and patent-pending technologies have the potential to be game-changers in multiple industries including logistics and distribution.  Even though R2 is currently designed with only a mobile upper body, R2's ability to accomplish complex and delicate operations provides a higher level of sophistication not currently seen in the existing robotics field for logistics and distribution. In terms of handling inventory, R2's dexterity would allow it to handle a multitude of items, including delicate ones. R2 can safely work in close proximity to humans, making the robot suitable to work in complex environments such as distribution centers. R2 has the ability to operate equipment and machines designed for humans, like hand-held power tools or inventory-scanning equipment. R2's design enables many useful applications in logistics and distribution.",
+    "category": "Robotics Automation and Control",
+    "center": "JSC"
+  },
+  {
+    "id": "LAR-TOPS-61",
+    "case_number": "LAR-TOPS-61",
+    "title": "Computational Visual Servo",
+    "abstract": "NASA's Langley Research Center researchers have developed an automatic measurement and control method for smart image enhancement. Pilots, doctors, and photographers will benefit from this innovation that offers a new approach to image processing. Initial advantages will be seen in improved\nmedical imaging and nighttime photography. Standard image enhancement software is unable to improve poor quality conditions such as low light, poor clarity, and fog-like conditions. The technology consists of a set of comprehensive methods that perform well across a wide range of conditions encountered in arbitrary images. Conditions include large variations in lighting, scene characteristics, and atmospheric (or underwater) turbidity variations. NASA is seeking market insights on commercialization of this new technology, and welcomes interest from potential producers, users, and licensees.",
+    "category": "Information Technology and Software",
+    "center": "LARC"
+  },
+  {
+    "id": "MSC-TOPS-129",
+    "case_number": "MSC-TOPS-129",
+    "title": "Anonymous Feature Processing for Enhanced Navigation",
+    "abstract": "Innovators at NASA Johnson Space Center have developed an innovative algorithmic and computational approach to vision-based feature recognition called Anonymous Feature Processing (AFP). The \u2018anonymous\u2019 approach allows feature-based navigation techniques to be performed without the need for explicit correspondence/identification between visual system observations and cataloged map data, thus helping to eliminate costs and risks induced by identification procedures.\n \nBy eliminating the error-prone and computationally burdensome identification and detection steps, AFP is designed to yield marked improvements in system robustness along with reducing algorithmic and software development costs. This novel method only requires a simple camera, or LIDAR sensor, and flight computer to track multiple targets and navigate vehicles more quickly, reliably, and safely.\n \nThe AFP approach is adaptable to a wide range of sensor types and platforms, capable of supporting challenging space exploration and terrestrial navigation systems with low visibility conditions or with cluttered surroundings. A new technique such as AFP that eliminates preprocessing while adding system robustness could have commercial applications in autonomous vehicles, manufacturing, and research-based imaging.",
+    "category": "Robotics Automation and Control",
+    "center": "JSC"
+  },
+  {
+    "id": "MSC-TOPS-47",
+    "case_number": "MSC-TOPS-47",
+    "title": "Robonaut 2: Industrial Opportunities",
+    "abstract": "Researchers at the NASA Johnson Space Center (JSC) in collaboration with General Motors (GM) and Oceaneering, have designed a state-of-the-art, highly dexterous, humanoid robot: Robonaut 2 (R2). R2's nearly 50 patented and patent-pending technologies have the potential to be game-changers in many applications such as the industrial environments.  For example, in a traditional robotic assembly line there are multiple specialized robots that are tooled for a small set of unique tasks.  R2 provides an alternative way to implement automated assembly using extraordinary task flexibility, dexterity and rapid interchangeability with human processes and tools.  This can lower automation infrastructure costs and increase manufacturing flexibility. R2 can serve as an assistant or work independently. R2's dexterity is a key feature in industrial environments as the robot can handle factory work that is ergonomically difficult, fatiguing, or even unsafe.",
+    "category": "Manufacturing",
+    "center": "JSC"
+  },
+  {
+    "id": "TOP2-102",
+    "case_number": "TOP2-102",
+    "title": "Spatial Standard Observer (SSO)",
+    "abstract": "The Spatial Standard Observer (SSO) was developed to predict the detectability of spatial contrast targets such as those used in the ModelFest project. The SSO is a lumped parameter model basing its predictions on the visible contrast generalized energy. Visible contrast\nmeans that the contrast has been reduced by a contrast sensitivity function (CSF). Generalized energy means that the visible contrast is raised to a power higher than 2 before spatial and temporal integration. To adapt the SSO to predict the effects of variations of optical image quality on tasks, the optical component of the SSO CSF needs to be removed, leaving the neural CSF. Also, since target detection is not the typical criterion task for assessing optical image quality, the SSO concept needs to be extended to other tasks, such as Sloan character recognition.",
+    "category": "Optics",
+    "center": "ARC"
+  },
+  {
+    "id": "MSC-TOPS-104",
+    "case_number": "MSC-TOPS-104",
+    "title": "Advanced Robotic Sensing Technologies",
+    "abstract": "NASA and General Motors, two organizations at the forefront of autonomous robotics, have collaborated to develop Robonaut 2 (R2) \u2013 a state-of-the-art, dexterous, humanoid robot capable of performing tasks in an automated fashion (or via teleoperation). The technology developed throughout the project represents the cutting edge of autonomous, humanoid robotics. These technologies are available for licensing, both in a modular fashion or as an integrated system, to enhance your robotic products. Please see the Related Links section below for information on additional R2 robotics technologies, including those related to hands, arms, and interface/control systems.\n\nDesigning a humanoid robot with human-like sensory and perception systems requires an extensive sensor suite (R2 has over 350 integrated sensors). Several novel sensors were developed to accomplish this goal, including a flexible perception system, tendon tension sensor, contact state estimation sensor, and load sensors in the fingers that give R2 its tactile sense (i.e., sense of \u201ctouch\u201d).",
+    "category": "Robotics Automation and Control",
+    "center": "JSC"
+  },
+  {
+    "id": "GSC-TOPS-377",
+    "case_number": "GSC-TOPS-377",
+    "title": "Atomic Layer Deposition-Enhanced Far-to-Mid Infrared Camera Coating",
+    "abstract": "Infrared (IR) cameras for space missions require robust coatings that are cryogenically cooled to reduce thermal noise and are low-reflectance absorptive to mitigate image artifacts such as glinting, ghosting, and internal reflections. Thermal noise reduction improves as temperatures decrease (e.g., below 30 K). However, capturing the far-to-mid IR spectrum typically requires thick layers of common 'super black' coatings, which often use free-standing nanotubes or foam-like structures that become fragile below 120-150 K. \n\nIn response, engineers at Goddard Space Flight Center developed an Atomic Layer Deposition (ALD)-Enhanced Far-to-Mid IR Camera Coating that can be cooled to and operate at less than 30 K while maintaining low-reflection absorption. The coating results in enhanced optical performance, increased strength, reduced total mass, and suitable ionizing radiation control.",
+    "category": "Materials and Coatings",
+    "center": "GSFC"
+  }
+]

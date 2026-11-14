@@ -1,0 +1,1341 @@
+{
+  "generated_at_utc": "2026-11-14T13:11:07.471041+00:00",
+  "osdr_csv_counts_by_domain": {
+    "human_clinical": 11,
+    "ocular_sans": 10,
+    "bone_muscle": 15,
+    "radiation_neuro_immune": 46
+  },
+  "donki": {
+    "range": "2020-01-01 to 2026-11-14",
+    "flr_events": 2832,
+    "sep_events": 344,
+    "gst_kp_records": 253,
+    "daily_rows": 2510
+  },
+  "iss_orbit_points": 288,
+  "techtransfer_patents": {
+    "medical": 25,
+    "cardiovascular": 1,
+    "vision": 15,
+    "radiation": 25,
+    "bone": 4
+  },
+  "osdr_datasets": [
+    {
+      "domain": "human_clinical",
+      "study": "OSD-569",
+      "file": "backend/data/osdr/human_clinical/OSD-569/LSDS-7_Complete_Blood_Count_CBC.upload_SUBMITTED.csv",
+      "rows": 553,
+      "cols": 9,
+      "columns_preview": [
+        "ANALYTE",
+        "VALUE",
+        "RANGE_MIN",
+        "RANGE_MAX",
+        "UNITS",
+        "TEST_TYPE",
+        "SUBJECT_ID",
+        "SEX",
+        "TEST_DATE"
+      ]
+    },
+    {
+      "domain": "human_clinical",
+      "study": "OSD-569",
+      "file": "backend/data/osdr/human_clinical/OSD-569/LSDS-7_Complete_Blood_Count_CBC_TRANSFORMED.csv",
+      "rows": 28,
+      "cols": 61,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "absolute_basophils_value_cells_per_microliter",
+        "absolute_basophils_range_min_cells_per_microliter",
+        "absolute_basophils_range_max_cells_per_microliter",
+        "absolute_eosinophils_value_cells_per_microliter",
+        "absolute_eosinophils_range_min_cells_per_microliter",
+        "absolute_eosinophils_range_max_cells_per_microliter",
+        "absolute_lymphocytes_value_cells_per_microliter",
+        "absolute_lymphocytes_range_min_cells_per_microliter",
+        "absolute_lymphocytes_range_max_cells_per_microliter"
+      ]
+    },
+    {
+      "domain": "human_clinical",
+      "study": "OSD-575",
+      "file": "backend/data/osdr/human_clinical/OSD-575/LSDS-8_Comprehensive_Metabolic_Panel_CMP.upload_SUBMITTED.csv",
+      "rows": 531,
+      "cols": 9,
+      "columns_preview": [
+        "ANALYTE",
+        "VALUE",
+        "RANGE_MIN",
+        "RANGE_MAX",
+        "UNITS",
+        "TEST_TYPE",
+        "SUBJECT_ID",
+        "SEX",
+        "timepoint"
+      ]
+    },
+    {
+      "domain": "human_clinical",
+      "study": "OSD-575",
+      "file": "backend/data/osdr/human_clinical/OSD-575/LSDS-8_Multiplex_serum.immune.EvePanel_SUBMITTED.csv",
+      "rows": 1988,
+      "cols": 8,
+      "columns_preview": [
+        "\ufeffAnalyte",
+        "Concentration",
+        "Timepoint",
+        "ID",
+        "Unit",
+        "Timepoint2",
+        "Type",
+        "Percent"
+      ]
+    },
+    {
+      "domain": "human_clinical",
+      "study": "OSD-575",
+      "file": "backend/data/osdr/human_clinical/OSD-575/LSDS-8_Multiplex_serum.cardiovascular.EvePanel_SUBMITTED.csv",
+      "rows": 252,
+      "cols": 8,
+      "columns_preview": [
+        "\ufeffAnalyte",
+        "Concentration",
+        "Timepoint",
+        "ID",
+        "Unit",
+        "Timepoint2",
+        "Type",
+        "Percent"
+      ]
+    },
+    {
+      "domain": "human_clinical",
+      "study": "OSD-575",
+      "file": "backend/data/osdr/human_clinical/OSD-575/LSDS-8_Multiplex_serum_immune_EvePanel_TRANSFORMED.csv",
+      "rows": 28,
+      "cols": 143,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "6ckine_concentration_picogram_per_milliliter",
+        "6ckine_percent",
+        "bca_1_concentration_picogram_per_milliliter",
+        "bca_1_percent",
+        "ctack_concentration_picogram_per_milliliter",
+        "ctack_percent",
+        "egf_concentration_picogram_per_milliliter",
+        "egf_percent",
+        "ena_78_concentration_picogram_per_milliliter"
+      ]
+    },
+    {
+      "domain": "human_clinical",
+      "study": "OSD-575",
+      "file": "backend/data/osdr/human_clinical/OSD-575/LSDS-8_Multiplex_serum_cardiovascular_EvePanel_TRANSFORMED.csv",
+      "rows": 28,
+      "cols": 19,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "a2_macroglobulin_concentration_nanogram_per_milliliter",
+        "a2_macroglobulin_percent",
+        "agp_concentration_nanogram_per_milliliter",
+        "agp_percent",
+        "crp_concentration_picogram_per_milliliter",
+        "crp_percent",
+        "fetuin_a36_concentration_nanogram_per_milliliter",
+        "fetuin_a36_percent",
+        "fibrinogen_concentration_nanogram_per_milliliter"
+      ]
+    },
+    {
+      "domain": "human_clinical",
+      "study": "OSD-575",
+      "file": "backend/data/osdr/human_clinical/OSD-575/LSDS-8_Multiplex_serum.immune.AlamarPanel_TRANSFORMED.csv",
+      "rows": 27,
+      "cols": 407,
+      "columns_preview": [
+        "\ufeffSample ID",
+        "activin_a_concentration_npq",
+        "activin_a_percent_normalized_value",
+        "activin_ab_concentration_npq",
+        "activin_ab_percent_normalized_value",
+        "activin_b_concentration_npq",
+        "activin_b_percent_normalized_value",
+        "ager_concentration_npq",
+        "ager_percent_normalized_value",
+        "agrp_concentration_npq"
+      ]
+    },
+    {
+      "domain": "human_clinical",
+      "study": "OSD-575",
+      "file": "backend/data/osdr/human_clinical/OSD-575/LSDS-8_Comprehensive_Metabolic_Panel_CMP_TRANSFORMED.csv",
+      "rows": 28,
+      "cols": 58,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "albumin_value_gram_per_deciliter",
+        "albumin_range_min_gram_per_deciliter",
+        "albumin_range_max_gram_per_deciliter",
+        "albumin_to_globulin_ratio_value",
+        "albumin_to_globulin_ratio_range_min",
+        "albumin_to_globulin_ratio_range_max",
+        "alkaline_phosphatase_value_units_per_liter",
+        "alkaline_phosphatase_range_min_units_per_liter",
+        "alkaline_phosphatase_range_max_units_per_liter"
+      ]
+    },
+    {
+      "domain": "human_clinical",
+      "study": "OSD-656",
+      "file": "backend/data/osdr/human_clinical/OSD-656/LSDS-64_Multiplex_200plex v1-Target Information.csv",
+      "rows": 203,
+      "cols": 5,
+      "columns_preview": [
+        "Target",
+        "AlamarTargetID",
+        "UniProtID",
+        "ProteinName",
+        "GeneName"
+      ]
+    },
+    {
+      "domain": "human_clinical",
+      "study": "OSD-656",
+      "file": "backend/data/osdr/human_clinical/OSD-656/LSDS-64_Multiplex_urine.immune.AlamarPanel_TRANSFORMED.csv",
+      "rows": 22,
+      "cols": 407,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "activin_a_concentration_npq",
+        "",
+        "activin_ab_concentration_npq",
+        "activin_ab_percent_normalized_value",
+        "activin_b_concentration_npq",
+        "activin_b_percent_normalized_value",
+        "ager_concentration_npq",
+        "ager_percent_normalized_value",
+        "agrp_concentration_npq"
+      ]
+    },
+    {
+      "domain": "ocular_sans",
+      "study": "OSD-583",
+      "file": "backend/data/osdr/ocular_sans/OSD-583/LSDS-16_tonometry_Transformed_Files.csv",
+      "rows": 100,
+      "cols": 11,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "Left_Eye_IOP_Measurement_1_mmHg",
+        "Left_Eye_IOP_Measurement_2_mmHg",
+        "Left_Eye_IOP_Measurement_3_mmHg",
+        "Left_Eye_IOP_Measurement_Average_mmHg",
+        "Right_Eye_IOP_Measurement_1_mmHg",
+        "Right_IOP_Measurement_2_mmHg",
+        "Right__IOP_Measurement_3_mmHg",
+        "Right_IOP_Measurement_Average_mmHg",
+        "Measurement_Time_Start"
+      ]
+    },
+    {
+      "domain": "ocular_sans",
+      "study": "OSD-680",
+      "file": "backend/data/osdr/ocular_sans/OSD-680/LSDS-82_Tomography_Fuller_MRI_OpticNerve_TRANSFORMED.csv",
+      "rows": 68,
+      "cols": 6,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "Day_0_Optic_Nerve_Sheath_Diameter_millimeter",
+        "Day_45_Optic_Nerve_Sheath_Diameter_millimeter",
+        "Day_90_Optic_Nerve_Sheath_Diameter_millimeter",
+        "Day_135_Optic_Nerve_Sheath_Diameter_millimeter",
+        "Day_180_Optic_Nerve_Sheath_Diameter_millimeter"
+      ]
+    },
+    {
+      "domain": "ocular_sans",
+      "study": "OSD-681",
+      "file": "backend/data/osdr/ocular_sans/OSD-681/LSDS-83_Telemetry_Fuller_BiotelemetryTb_TRANSFORMED.csv",
+      "rows": 33,
+      "cols": 10,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "Baseline_Average_Body_Temperature_degree_Celsius",
+        "Day_0_Average_Body_Temperature_degree_Celsius",
+        "Day_30_Average_Body_Temperature_degree_Celsius",
+        "Day_60_Average_Body_Temperature_degree_Celsius",
+        "Day_90_Average_Body_Temperature_degree_Celsius",
+        "Day_91_Average_Body_Temperature_degree_Celsius",
+        "Day_120_Average_Body_Temperature_degree_Celsius",
+        "Day_150_Average_Body_Temperature_degree_Celsius",
+        "Day_180_Average_Body_Temperature_degree_Celsius"
+      ]
+    },
+    {
+      "domain": "ocular_sans",
+      "study": "OSD-681",
+      "file": "backend/data/osdr/ocular_sans/OSD-681/LSDS-83_Telemetry - Intracranial Pressure_Fuller_BiotelemetryICP_TRANSFORMED.csv",
+      "rows": 33,
+      "cols": 8,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "Day_0_Intracranial_Pressure_torr",
+        "Day_30_Intracranial_Pressure_torr",
+        "Day_60_Intracranial_Pressure_torr",
+        "Day_90_Intracranial_Pressure_torr",
+        "Day_120_Intracranial_Pressure_torr",
+        "Day_150_Intracranial_Pressure_torr",
+        "Day_180_Intracranial_Pressure_torr"
+      ]
+    },
+    {
+      "domain": "ocular_sans",
+      "study": "OSD-816",
+      "file": "backend/data/osdr/ocular_sans/OSD-816/GLDS-700_RT-PCR_3646207_Platemap.csv",
+      "rows": 17,
+      "cols": 1,
+      "columns_preview": [
+        "   "
+      ]
+    },
+    {
+      "domain": "ocular_sans",
+      "study": "OSD-817",
+      "file": "backend/data/osdr/ocular_sans/OSD-817/LSDS-135_immunostaining_TUNEL_TRANSFORMED.csv",
+      "rows": 18,
+      "cols": 3,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "Counts",
+        "Normalized Counts"
+      ]
+    },
+    {
+      "domain": "ocular_sans",
+      "study": "OSD-817",
+      "file": "backend/data/osdr/ocular_sans/OSD-817/LSDS-135_immunostaining_CTB_TRANSFORMED.csv",
+      "rows": 19,
+      "cols": 4,
+      "columns_preview": [
+        "Sample Name",
+        "Counts",
+        "Normalized Counts",
+        ""
+      ]
+    },
+    {
+      "domain": "ocular_sans",
+      "study": "OSD-817",
+      "file": "backend/data/osdr/ocular_sans/OSD-817/LSDS-135_Immunohistochemistry_IHC_OpticNerveHead_TRANSFORMED.csv",
+      "rows": 18,
+      "cols": 9,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "COLIV_expression_score",
+        "LAM_expression_score",
+        "FN_expression_score",
+        "GFAP_expression_score",
+        "TNFA_expression_score",
+        "TLR4_expression_score",
+        "",
+        ""
+      ]
+    },
+    {
+      "domain": "ocular_sans",
+      "study": "OSD-817",
+      "file": "backend/data/osdr/ocular_sans/OSD-817/LSDS-135_microscopy_PPD_TRANSFORMED.csv",
+      "rows": 18,
+      "cols": 75,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "slide_1_rep1_normal_axon_ count",
+        "slide_1_rep2_normal_axon_ count",
+        "slide_1_rep3_normal_axon_ count",
+        "slide_1_rep4_normal_axon_ count",
+        "slide_1_rep5_normal_axon_ count",
+        "slide_1_rep1_abnormal_axon_ count",
+        "slide_1_rep2_abnormal_axon_ count",
+        "slide_1_rep3_abnormal_axon_ count",
+        "slide_1_rep4_abnormal_axon_ count"
+      ]
+    },
+    {
+      "domain": "ocular_sans",
+      "study": "OSD-818",
+      "file": "backend/data/osdr/ocular_sans/OSD-818/LSDS-132_western-blot_Medium_WesternBlot_TRANSFORMED.csv",
+      "rows": 48,
+      "cols": 3,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "fibronectin_content_dalton",
+        "collagen_IV_content_dalton"
+      ]
+    },
+    {
+      "domain": "bone_muscle",
+      "study": "OSD-351",
+      "file": "backend/data/osdr/bone_muscle/OSD-351/LSDS-9_microCT_turnerTRANSFORMED.csv",
+      "rows": 102,
+      "cols": 20,
+      "columns_preview": [
+        "\ufeffSource Name",
+        "Sample Name",
+        "Material Type",
+        "cortical_CSA_mmsq",
+        "cortical_area_mmsq",
+        "cortical_marrow_area_mmsq",
+        "cortical_thickness_micrometer",
+        "cortical_pMOI_mm_4thpwr",
+        "cancellous_metaphysis_BV_TV_percent",
+        "cancellous_metaphysis_ConnD_1per_mm_third"
+      ]
+    },
+    {
+      "domain": "bone_muscle",
+      "study": "OSD-471",
+      "file": "backend/data/osdr/bone_muscle/OSD-471/LSDS-19_microCT_bergjohansenTRANSFORMED.csv",
+      "rows": 2,
+      "cols": 15,
+      "columns_preview": [
+        "Sample Name",
+        "Factor Value",
+        "N",
+        "Bone_volume_tissue_volume_BVTV_percent",
+        "Standard_deviation_SD",
+        "Standard_error_SE",
+        "Trabecular_Thickness_TbTh_volume_of_interest_VOI_micrometer",
+        "Standard_deviation_SD",
+        "Standard_error_SE",
+        "Trabecular_Thickness_TbTh_TOTAL_micrometer"
+      ]
+    },
+    {
+      "domain": "bone_muscle",
+      "study": "OSD-477",
+      "file": "backend/data/osdr/bone_muscle/OSD-477/LSDS-40_Bone_Biomechanical_LDSD-40_biomechanical_KoTRANSFORMED.csv",
+      "rows": 140,
+      "cols": 16,
+      "columns_preview": [
+        "\ufeffSource Name",
+        "Sample Name",
+        "PWB",
+        "Duration",
+        "Material Type",
+        "Final Body weight [g]",
+        "femur_length_millimeters",
+        "stiffness_N_per_mm_newtons_per_millimeter",
+        "maximum_load_N_newtons",
+        "failure_load_newtons"
+      ]
+    },
+    {
+      "domain": "bone_muscle",
+      "study": "OSD-477",
+      "file": "backend/data/osdr/bone_muscle/OSD-477/LSDS-40_histomorphometry_LSDS-40_histomorphometry_KoTRANSFORMED.csv",
+      "rows": 60,
+      "cols": 17,
+      "columns_preview": [
+        "\ufeffSource Name",
+        "Sample Name",
+        "PWB",
+        "Duration",
+        "Tissue",
+        "Final Body weight [g]",
+        "Osteoblast_surface_Os_per_bone_surface_BS_percent",
+        "Osteoclast_surface_OcS_per_bone_surface_BS_percent",
+        "Mineralized_surface_MS_per_bone_surface_BS_percent",
+        "Mineral_apposition_rate_MAR_micrometers_per_day"
+      ]
+    },
+    {
+      "domain": "bone_muscle",
+      "study": "OSD-477",
+      "file": "backend/data/osdr/bone_muscle/OSD-477/LSDS-40_microCT_LSDS-40_microCT_KoTRANSFORMED.csv",
+      "rows": 141,
+      "cols": 24,
+      "columns_preview": [
+        "\ufeff",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "Femoral Trabecular Bone",
+        "",
+        ""
+      ]
+    },
+    {
+      "domain": "bone_muscle",
+      "study": "OSD-489",
+      "file": "backend/data/osdr/bone_muscle/OSD-489/LSDS-15_microCT_alwoodSUBMITTED.csv",
+      "rows": 37,
+      "cols": 30,
+      "columns_preview": [
+        "\ufeffSubject",
+        "Treatment",
+        "Gravity (g)",
+        "3D Analysis Summary File",
+        "Date and time",
+        "Pixel size \u00b5m",
+        "Lower grey threshold",
+        "Upper grey threshold",
+        "Tissue volume (TV, mm3)",
+        "Bone volume (BV, mm3)"
+      ]
+    },
+    {
+      "domain": "bone_muscle",
+      "study": "OSD-489",
+      "file": "backend/data/osdr/bone_muscle/OSD-489/LSDS-15_microCT_alwoodTRANSFORMED.csv",
+      "rows": 37,
+      "cols": 18,
+      "columns_preview": [
+        "\ufeffSource Name",
+        "Sample Name",
+        "Factor Value",
+        "trabecular_thickness_mm",
+        "trabecular_separation_mm",
+        "trabecular_number_1_by_mm",
+        "tissue_volume_mm_third",
+        "bone_volume_mm_third",
+        "percent_bone_volume_bvtv_percent",
+        "tissue_surface_mm_squared"
+      ]
+    },
+    {
+      "domain": "bone_muscle",
+      "study": "OSD-608",
+      "file": "backend/data/osdr/bone_muscle/OSD-608/LSDS-41_peripheral_quantitative_computed_tomography_pQCT_LSDS-41_pQCT_KoTRANSFORMED.csv",
+      "rows": 121,
+      "cols": 17,
+      "columns_preview": [
+        "\ufeff",
+        "",
+        "",
+        "trabecular_BMD_mg_per_cubic_centimeters",
+        "trabecular_BMD_mg_per_cubic_centimeters",
+        "trabecular_BMD_mg_per_cubic_centimeters",
+        "trabecular_BMD_mg_per_cubic_centimeters",
+        "trabecular_BMD_change_from_baseline_percent",
+        "trabecular_BMD_change_from_baseline_percent",
+        "trabecular_BMD_change_from_baseline_percent"
+      ]
+    },
+    {
+      "domain": "bone_muscle",
+      "study": "OSD-616",
+      "file": "backend/data/osdr/bone_muscle/OSD-616/LSDS-61_Force Plate_Force_Plate_Transformed_Reusable_Files.csv",
+      "rows": 239,
+      "cols": 70,
+      "columns_preview": [
+        "Sample Name",
+        "Girth_FootPlate_Data_Girth",
+        "Girth_FootPlate_Data_Baseline_Girth",
+        "Girth_FootPlate_Data_Max_Dorsiflexion_Newtons_times_millimeters",
+        "Girth_FootPlate_Data_Baseline_Max_Dorsiflexion_Newtons_times_millimeters",
+        "Girth_FootPlate_Data_Max_Plantar_flexion_Newtons_times_millimeters",
+        "Girth_FootPlate_Data_Baseline_Max_Plantar_flexion_Newtons_times_millimeters",
+        "Girth_FootPlate_Data_Dorsiflexion_AreaUnderCurve",
+        "Girth_FootPlate_Data_Baseline_Dorsiflexion_AreaUnderCurve",
+        "Girth_FootPlate_Data_Plantarflexion_AreaUnderCurve"
+      ]
+    },
+    {
+      "domain": "bone_muscle",
+      "study": "OSD-653",
+      "file": "backend/data/osdr/bone_muscle/OSD-653/LSDS-67_peripheral_quantitative_computed_tomography_pQCT_Transformed.csv",
+      "rows": 238,
+      "cols": 39,
+      "columns_preview": [
+        "Sample Name",
+        "pQCT_Data_total_density_mg_HA_divided_by_cm_cubed",
+        "pQCT_Data_baseline_total_density_mg_HA_divided_by_cm_cubed",
+        "pQCT_Data_total_area_millimeters_squared",
+        "pQCT_Data_Tb_Density_mg_HA_divided_by_cm_cubed",
+        "pQCT_Data_Baseline_Tb_Density_mg_HA_divided_by_cm_cubed",
+        "pQCT_Data_Tb_area_millimeters_squared",
+        "pQCT_Data_Baseline_Tb_area_millimeters_squared",
+        "pQCT_Data_Cortical_density_mg_HA_divided_by_cm_cubed",
+        "pQCT_Data_Baseline_cortical_density_mg_HA_divided_by_cm_cubed"
+      ]
+    },
+    {
+      "domain": "bone_muscle",
+      "study": "OSD-661",
+      "file": "backend/data/osdr/bone_muscle/OSD-661/LSDS-69_Bone_microstructure_DXA_spine_TRANSFORMED.csv",
+      "rows": 10,
+      "cols": 5,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "body_fat_percent",
+        "lean_mass_percent",
+        "baseline_regional_BMD",
+        "post-HLS_regional_BMD"
+      ]
+    },
+    {
+      "domain": "bone_muscle",
+      "study": "OSD-702",
+      "file": "backend/data/osdr/bone_muscle/OSD-702/LSDS-99_Atomic_Force_Microscopy_Data Dictionary.csv",
+      "rows": 21,
+      "cols": 3,
+      "columns_preview": [
+        "\ufeffFile",
+        "Term",
+        "Definitions"
+      ]
+    },
+    {
+      "domain": "bone_muscle",
+      "study": "OSD-702",
+      "file": "backend/data/osdr/bone_muscle/OSD-702/LSDS-99_Atomic_Force_Microscopy_Master_Data_Sheet_Combined_Data_TRANSFORMED.csv",
+      "rows": 38,
+      "cols": 13,
+      "columns_preview": [
+        "Sample_Name",
+        "Micrograph_Number_Autogenerated_by_JPK",
+        "Average_Height_of_Collagen_Fibrils_Nanometers",
+        "Maximum_Height_of_Collagen_Fibrils_Nanometers",
+        "Diameter_Meansurement_of_Collagen_Fibrils_Nanometers_1",
+        "Diameter_Meansurement_of_Collagen_Fibrils_Nanometers_2",
+        "Diameter_Meansurement_of_Collagen_Fibrils_Nanometers_3",
+        "Diameter_Meansurement_of_Collagen_Fibrils_Nanometers_4",
+        "Diameter_Meansurement_of_Collagen_Fibrils_Nanometers_5",
+        "Average_Diameter_Meansurement_of_Collagen_Fibrils_Nanometers"
+      ]
+    },
+    {
+      "domain": "bone_muscle",
+      "study": "OSD-718",
+      "file": "backend/data/osdr/bone_muscle/OSD-718/LSDS-108_Atomic_Force_Microscopy_Data Dictionary.csv",
+      "rows": 21,
+      "cols": 3,
+      "columns_preview": [
+        "\ufeffFile",
+        "Term",
+        "Definitions"
+      ]
+    },
+    {
+      "domain": "bone_muscle",
+      "study": "OSD-718",
+      "file": "backend/data/osdr/bone_muscle/OSD-718/LSDS-108_Atomic_Force_Microscopy_Master_Data_Sheet_Combined_Data_TRANSFORMED.csv",
+      "rows": 17,
+      "cols": 13,
+      "columns_preview": [
+        "Sample_Name",
+        "Micrograph_Number_Autogenerated_by_JPK",
+        "Average_Height_of_Collagen_Fibrils_Nanometers",
+        "Maximum_Height_of_Collagen_Fibrils_Nanometers",
+        "Diameter_Meansurement_of_Collagen_Fibrils_Nanometers_1",
+        "Diameter_Meansurement_of_Collagen_Fibrils_Nanometers_2",
+        "Diameter_Meansurement_of_Collagen_Fibrils_Nanometers_3",
+        "Diameter_Meansurement_of_Collagen_Fibrils_Nanometers_4",
+        "Diameter_Meansurement_of_Collagen_Fibrils_Nanometers_5",
+        "Average_Diameter_Meansurement_of_Collagen_Fibrils_Nanometers"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-479",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-479/LSDS-121_EPM_Krukowski2021_EPM_TRANSFORMED.csv",
+      "rows": 350,
+      "cols": 2,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "EPM_OpenandCenter_sec"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-479",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-479/LSDS-121_EPM_Krukowski2021_DataDicitonary.csv",
+      "rows": 256,
+      "cols": 3,
+      "columns_preview": [
+        "\ufeffTerm",
+        "Description",
+        ""
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-479",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-479/LSDS-121_Novel_Object_Recognition_Krukowski2021_NOR_TRANSFORMED.csv",
+      "rows": 356,
+      "cols": 18,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "NOR_Day3_Left",
+        "NOR_Day3_Right",
+        "NOR_Day3_TotalTime",
+        "NOR_Day3_per_Left",
+        "NOR_Day3_per_Right",
+        "NOR_Day4_3min_Nov",
+        "NOR_Day4_3min_Fam",
+        "NOR_Day4_3min_Totaltime",
+        "NOR_Day4_3min_per_Nov"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-479",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-479/LSDS-121_Novel_Object_Recognition_Krukowski2021_DataDicitonary.csv",
+      "rows": 256,
+      "cols": 3,
+      "columns_preview": [
+        "\ufeffTerm",
+        "Description",
+        ""
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-479",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-479/LSDS-121_Open_Field_Krukowski2021_OF_TRANSFORMED.csv",
+      "rows": 350,
+      "cols": 4,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "OpenField_dist",
+        "OpenField_velocity",
+        "OpenField_center_sec"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-479",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-479/LSDS-121_Open_Field_Krukowski2021_DataDicitonary.csv",
+      "rows": 256,
+      "cols": 3,
+      "columns_preview": [
+        "\ufeffTerm",
+        "Description",
+        ""
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-479",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-479/LSDS-121_Radial_Arm_Water_Maze_Krukowski2021_DataDicitonary.csv",
+      "rows": 256,
+      "cols": 3,
+      "columns_preview": [
+        "\ufeffTerm",
+        "Description",
+        ""
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-479",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-479/LSDS-121_Radial_Arm_Water_Maze_Krukowski2021_RAWM_TRANSFORMED.csv",
+      "rows": 356,
+      "cols": 23,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "RAWM_D1_Trial1_Errors",
+        "RAWM_D1_Trial2_Errors",
+        "RAWM_D1_Trial3_Errors",
+        "RAWM_D1_Block1_Errors",
+        "RAWM_D1_Trial1_duration",
+        "RAWM_D1_Trial2_duration",
+        "RAWM_D1_Trial3_duration",
+        "RAWM_D1_Block1_duration",
+        "RAWM_D1_Trial1_velocity"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-479",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-479/LSDS-121_Three_Chamber_Social_Test_Krukowski_CSIT_TRANSFORMED.csv",
+      "rows": 237,
+      "cols": 27,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "Social_Habituation_distance_cm",
+        "Social_Habituation_velocity",
+        "Sociability_Ms_3min",
+        "Sociability_Cg_3min",
+        "Sociability_TotalTime_3min",
+        "Sociability_percent_Ms_3min",
+        "Sociability_percent_Cg_3min",
+        "Sociability_ratio_3min",
+        "Sociability_Ms_5min"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-479",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-479/LSDS-121_Three_Chamber_Social_Test_Krukowski2021_DataDicitonary.csv",
+      "rows": 256,
+      "cols": 3,
+      "columns_preview": [
+        "\ufeffTerm",
+        "Description",
+        ""
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-490",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-490/LSDS-24_EPM_Rabin2007_ElevatedPlusMaze_TRANSFORMED.csv",
+      "rows": 135,
+      "cols": 10,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "beam_breaks_number",
+        "time_in_closed_arm_percent",
+        "beam_breaks_normalized_number",
+        "time_in_closed_arm_normalized_percent",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-490",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-490/LSDS-24_EPM_ElevatedPlusMaze_DATADICTIONARY.csv",
+      "rows": 38,
+      "cols": 2,
+      "columns_preview": [
+        "\ufeffTerm",
+        "Description"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-492",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-492/LSDS-50_Novel_Object_Recognition_NovelObjectRecognition_DATADICTIONARY.csv",
+      "rows": 74,
+      "cols": 4,
+      "columns_preview": [
+        "\ufeffTerm",
+        "Description",
+        "",
+        ""
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-492",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-492/LSDS-50_Novel_Object_Recognition_Rabin2009_NovelObjectRecognition_TRANSFORMED.csv",
+      "rows": 129,
+      "cols": 51,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "novel_object_1_conditioning_time_second",
+        "novel_object_1_testing_time_second",
+        "novel_object_1_total_time_with_objects_second",
+        "novel_object_1_time_spent_with_novel_object_second",
+        "novel_object_1_time_with_familiar_object",
+        "novel_object_1_time_spent_with_novel_object_percent",
+        "novel_object_1_time_spent_with_novel_object_normalized_percent",
+        "novel_object_2_conditioning_time_second",
+        "novel_object_2_testing_time_second"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-618",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-618/LSDS-48_Novel_Object_Recognition_618_NOR_DATADICTIONARY.csv",
+      "rows": 51,
+      "cols": 2,
+      "columns_preview": [
+        "\ufeffAnimal_ID",
+        "Animal identification number throughout experiment"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-618",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-618/LSDS-48_Open_Field_618_OF_DATADICTIONARY.csv",
+      "rows": 51,
+      "cols": 2,
+      "columns_preview": [
+        "\ufeffAnimal_ID",
+        "Animal identification number throughout experiment"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-618",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-618/LSDS-48_Radial_Arm_Water_Maze_618_RAWM_DATADICTIONARY.csv",
+      "rows": 51,
+      "cols": 2,
+      "columns_preview": [
+        "\ufeffAnimal_ID",
+        "Animal identification number throughout experiment"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-618",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-618/LSDS-48_Three_Chamber_Social_Test_618_SOCIALAPPROACH_DATADICTIONARY.csv",
+      "rows": 51,
+      "cols": 2,
+      "columns_preview": [
+        "\ufeffAnimal_ID",
+        "Animal identification number throughout experiment"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-618",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-618/LSDS-48_Balance_Beam_618_BalanceBeam_DATADICTIONARY.csv",
+      "rows": 21,
+      "cols": 2,
+      "columns_preview": [
+        "\ufeffExp_Cage_No BNL",
+        "experimental cage number at Brookhaven National Laboratory"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-618",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-618/LSDS-48_EPM_618_EPM_DATADICTIONARY.csv",
+      "rows": 20,
+      "cols": 2,
+      "columns_preview": [
+        "\ufeffAnimal_ID",
+        "Animal identification number throughout experiment"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-618",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-618/LSDS-48_Three_Chamber_Social_Test_618_SOCIALAPPROACH_TRANSFORMED.csv",
+      "rows": 118,
+      "cols": 35,
+      "columns_preview": [
+        "\ufeffAnimal_ID",
+        "Social_Habituation_distance_cm",
+        "Social_Habituation_velocity",
+        "Sociability_Distance_3min",
+        "Sociability_Velocity_3min",
+        "Sociability_Distance_5min",
+        "Sociability_Velocity_5min",
+        "Sociability_Ms_3min",
+        "Sociability_Cg_3min",
+        "Sociability_TotalTime_3min"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-618",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-618/LSDS-48_Radial_Arm_Water_Maze_618_RAWM_TRANSFORMED.csv",
+      "rows": 118,
+      "cols": 28,
+      "columns_preview": [
+        "\ufeffAnimal_ID",
+        "RAWM_D1_Trial 1_Errors",
+        "RAWM_D1_Trial 2_Errors",
+        "RAWM_D1_Trial 3_Errors",
+        "RAWM_D1_Trial 4_Errors",
+        "RAWM_D1_Trial 5_Errors",
+        "RAWM_D1_Trial 6_Errors",
+        "RAWM_D1_Trial1_duration",
+        "RAWM_D1_Trial2_duration",
+        "RAWM_D1_Trial3_duration"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-618",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-618/LSDS-48_Open_Field_618_OF_TRANSFORMED.csv",
+      "rows": 118,
+      "cols": 4,
+      "columns_preview": [
+        "\ufeffAnimal_ID",
+        "OpenField_distance",
+        "OpenField_velocity",
+        "OpenField_center_sec"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-618",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-618/LSDS-48_Novel_Object_Recognition_618_NOR_TRANSFORMED.csv",
+      "rows": 118,
+      "cols": 20,
+      "columns_preview": [
+        "\ufeffAnimal_ID",
+        "NOR_Day3_Left",
+        "NOR_Day3_Right",
+        "NOR_Day3_TotalTime",
+        "NOR_Day3_per_Left",
+        "NOR_Day3_per_Right",
+        "NOR_Day4_3min_Nov",
+        "NOR_Day4_3min_Fam",
+        "NOR_Day4_3min_Totaltime",
+        "NOR_Day4_3min_per_Nov"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-618",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-618/LSDS-48_EPM_618_EPM_TRANSFORMED.csv",
+      "rows": 118,
+      "cols": 4,
+      "columns_preview": [
+        "\ufeffAnimal_ID",
+        "EPM_OpenandCenter_sec",
+        "EPM_velocity",
+        "EPM_distance"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-618",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-618/LSDS-48_Balance_Beam_618_BalanceBeam_TRANSFORMED.csv",
+      "rows": 118,
+      "cols": 5,
+      "columns_preview": [
+        "\ufeffAnimal_ID",
+        "BB_11mm_distance",
+        "BB_11mm_velocity",
+        "BB_5mm_distance",
+        "BB_5mm_velocity"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-640",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-640/LSDS-60_Flow_Cytometry_640_TRANSFORMED DATA.csv",
+      "rows": 232,
+      "cols": 17,
+      "columns_preview": [
+        "\ufeffSource Name",
+        "Sample Name",
+        "TV_raw_CD45",
+        "Raw_B_cells_CD19",
+        "Raw_Monocytes_CD11b",
+        "Raw_Helper_T_CD4",
+        "Raw_Cytotoxic_T_CD8",
+        "Raw_NK_NK1.1",
+        "Raw_Neutrophils_CD11b",
+        "Per_CD19_of_45"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-640",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-640/LSDS-60_Flow_Cytometry_640_DATA_DICTIONARY.csv",
+      "rows": 35,
+      "cols": 2,
+      "columns_preview": [
+        "\ufeffAnimal_ID",
+        "Animal identification number throughout experiment"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-738",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-738/LSDS-107_western-blot_Roy_Brain_WesternBlot_TRANSFORMED.csv",
+      "rows": 20,
+      "cols": 9,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "caspase1_relative_density",
+        "unit",
+        "asc_relative_density",
+        "unit",
+        "il1beta_relative_density",
+        "unit",
+        "actin_integrated_density",
+        "unit"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-738",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-738/LSDS-107_Immunoassay_Roy_Brain_ECLIA_TRANSFORMED.csv",
+      "rows": 20,
+      "cols": 15,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "tnf_alpha_concentration_normalized",
+        "unit",
+        "il2_concentration_normalized",
+        "unit",
+        "ifn_gamma_concentration_normalized",
+        "unit",
+        "il5_concentration_normalized",
+        "unit",
+        "il6_concentration_normalized"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-738",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-738/OSD-738_dictionary_Roy_DataDictionary.csv",
+      "rows": 11,
+      "cols": 6,
+      "columns_preview": [
+        "\ufeffassay_name",
+        "file",
+        "submitted_column_header",
+        "transformed_column_header",
+        "unit",
+        "definition"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-751",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-751/LSDS-112_Immunoassay_Roy_ECLIA_Cortex_TRANSFORMED.csv",
+      "rows": 16,
+      "cols": 15,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "tnf_alpha_concentration_normalized",
+        "unit",
+        "il10_concentration_normalized",
+        "unit",
+        "ifn_gamma_concentration_normalized",
+        "unit",
+        "il5_concentration_normalized",
+        "unit",
+        "il6_concentration_normalized"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-751",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-751/OSD-751_dictionary_Roy_DataDictionary.csv",
+      "rows": 11,
+      "cols": 6,
+      "columns_preview": [
+        "\ufeffassay_name",
+        "file",
+        "submitted_column_header",
+        "transformed_column_header",
+        "unit",
+        "definition"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-752",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-752/LSDS-113_Immunoassay_Roy_ECLIA_Hippocampus_TRANSFORMED.csv",
+      "rows": 8,
+      "cols": 16,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "tnf_alpha_concentration_normalized",
+        "unit",
+        "il10_concentration_normalized",
+        "unit",
+        "ifn_gamma_concentration_normalized",
+        "unit",
+        "il5_concentration_normalized",
+        "unit",
+        "il6_concentration_normalized"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-752",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-752/OSD-752_dictionary_Roy_DataDictionary.csv",
+      "rows": 11,
+      "cols": 6,
+      "columns_preview": [
+        "\ufeffassay_name",
+        "file",
+        "submitted_column_header",
+        "transformed_column_header",
+        "unit",
+        "definition"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-776",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-776/LSDS-122_Flow_Cytometry_Krukowski2021_Blood_Flow_TRANSFORMED.csv",
+      "rows": 248,
+      "cols": 15,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "TV7_Per_CD3_of_45",
+        "TV7_Per_CD4_of_3",
+        "TV7_Per_CD4_45",
+        "TV7_Per_CD8_3",
+        "TV7_Per_CD8_45",
+        "TV7_Per_Monocytes_45",
+        "TV7_Ratio_CD4_vs_CD8",
+        "Cardiac_Per_CD3_of_45",
+        "Cardiac_Per_CD4_of_3"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-776",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-776/LSDS-122_Flow_Cytometry_Krukowski2021_DataDicitonary.csv",
+      "rows": 256,
+      "cols": 3,
+      "columns_preview": [
+        "\ufeffTerm",
+        "Description",
+        ""
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-777",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-777/LSDS-125_Flow_Cytometry_Krukowski2021_DataDicitonary.csv",
+      "rows": 256,
+      "cols": 3,
+      "columns_preview": [
+        "\ufeffTerm",
+        "Description",
+        ""
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-777",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-777/LSDS-125_Flow_Cytometry_Krukowski2021_Microglia_FlowCytometry_TRANSFORMED.csv",
+      "rows": 50,
+      "cols": 18,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "Number_of_Microglia_CD68_Positive",
+        "Number_of_Microglia_CD107a_Positive",
+        "Number_of_Microglia_C5ar1_Positive",
+        "Number_of_Microglia_Total",
+        "Mean_Fluorescent_Intensity_of_CD11b_in_CD68_Positive_Cells",
+        "Mean_Fluorescent_Intensity_of_CD11b_in_CD107a_Positive_Cells",
+        "Mean_Fluorescent_Intensity_of_CD11b_in_C5aR1_Positive_Cells",
+        "Mean_Fluorescent_Intensity_of_CD11b_Average",
+        "Mean_Fluorescent_Intensity_of_CD11b_Standardized_to_Sham"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-778",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-778/LSDS-126_Flow_Cytometry_Krukowski2021_Synapse_FlowCytometry_TRANSFORMED.csv",
+      "rows": 20,
+      "cols": 7,
+      "columns_preview": [
+        "\ufeffSample_Name",
+        "Tube1_PSD-95_and_synapsin-1_synaptosomes_percent",
+        "Tube2_PSD-95_and_synapsin-1_synaptosomes_percent",
+        "Tube3_PSD-95_and_synapsin-1_synaptosomes_percent",
+        "Tube1_GluR1_synaptosomes_percent",
+        "Tube2_GluR1_synaptosomes_percent",
+        "Tube3_GluR1_synaptosomes_percent"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-778",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-778/LSDS-126_Flow_Cytometry_Krukowski2021_DataDicitonary.csv",
+      "rows": 256,
+      "cols": 3,
+      "columns_preview": [
+        "\ufeffTerm",
+        "Description",
+        ""
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-836",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-836/LSDS-140_EPM_Raber2024A_EPM_TRANSFORMED.csv",
+      "rows": 97,
+      "cols": 36,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "duration_open_arm",
+        "unit",
+        "entries_open_arm",
+        "total_distance_open_arm",
+        "unit",
+        "latency_first_entry_open_arm",
+        "unit",
+        "duration_open_arm_percent",
+        "unit"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-836",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-836/LSDS-140_Open_Field_Raber2024A_OpenField_TRANSFORMED.csv",
+      "rows": 97,
+      "cols": 29,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "total_distance_1",
+        "unit",
+        "total_distance_2",
+        "unit",
+        "duration_center_percent_1",
+        "unit",
+        "duration_center_percent_2",
+        "unit",
+        "duration_center_1"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-836",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-836/LSDS-140_Novel_Object_Recognition_Raber2024A_NovelObject_TRANSFORMED.csv",
+      "rows": 78,
+      "cols": 34,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "total_distance_1",
+        "unit",
+        "total_distance_2",
+        "unit",
+        "duration_both_objects_1",
+        "unit",
+        "duration_both_objects_2",
+        "unit",
+        "duration_left_object_percent_1"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-836",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-836/OSD-836_dictionary_Raber2024A_836_DataDictionary.csv",
+      "rows": 58,
+      "cols": 6,
+      "columns_preview": [
+        "\ufeffassay_name",
+        "file",
+        "submitted_column_header",
+        "transformed_column_header",
+        "unit",
+        "definition"
+      ]
+    },
+    {
+      "domain": "radiation_neuro_immune",
+      "study": "OSD-836",
+      "file": "backend/data/osdr/radiation_neuro_immune/OSD-836/LSDS-140_Anhedonia Test_Raber2024A_Anhedonia_TRANSFORMED.csv",
+      "rows": 97,
+      "cols": 13,
+      "columns_preview": [
+        "\ufeffSample Name",
+        "total_consumption",
+        "unit",
+        "percent_change_consumption_2",
+        "unit",
+        "percent_change_consumption_3",
+        "unit",
+        "total_consumption_1",
+        "unit",
+        "total_consumption_2"
+      ]
+    }
+  ]
+}

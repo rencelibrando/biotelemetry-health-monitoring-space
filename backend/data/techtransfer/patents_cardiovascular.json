@@ -1,0 +1,10 @@
+[
+  {
+    "id": "LAR-TOPS-396",
+    "case_number": "LAR-TOPS-396",
+    "title": "Filtered Ronchi Rulings for Enhanced Schlieren Imaging",
+    "abstract": "Researchers at NASA Langley Research Center  have developed two novel types of Ronchi rulings to improve flow measurement in schlieren imaging systems. A previous self-aligned focusing schlieren (SAFS) system, which uses a single Ronchi ruling as both the source and cutoff grids (LAR-TOPS-348), marked a significant advancement but remains limited to measuring density gradients in only one direction. This limitation can hinder more complex flow measurements, such as those at Mach 10 during shock-wave boundary layer interactions. Traditional systems, including those involving knife-edge cutoffs, may not be sufficient for capturing these dynamic phenomena.\n\nThe new designs break from traditional methods by replacing opaque markings with optical filters in the ruling lines. The first design is a one- dimensional (1D) Ronchi ruling that uses shortpass or longpass filters, while the second design is a two-dimensional (2D) ruling that incorporates orthogonal shortpass/longpass filter sets. Together, these optics leverage color filtering techniques and color cameras to deliver enhanced schlieren imaging, enabling a broader range of precise measurements.",
+    "category": "Optics",
+    "center": "LARC"
+  }
+]

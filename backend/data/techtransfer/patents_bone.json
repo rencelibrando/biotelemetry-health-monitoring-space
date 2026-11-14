@@ -1,0 +1,34 @@
+[
+  {
+    "id": "MSC-TOPS-95",
+    "case_number": "MSC-TOPS-95",
+    "title": "3D Mineralized Bone Constructs",
+    "abstract": "Innovators at NASA Johnson Space Center have developed a technique to grow 3D tissue constructs, similar to human bone, in a laboratory environment. Problems arise when studying both the normal state and pathophysiology of bone. As an organ system, it is slow growing, so the time to study and observe a response to a particular stimulus is relatively long. Our bioengineers have discovered that osteoblast and osteoclast cell types can be induced to aggregate into large spheroids in a specific spatial relationship under certain culture conditions when placed in a rotating-wall tissue-culture vessel (shown above). The ability to construct a 3D model of such mineralized tissue on-demand, using a co-culture of human cells that differentiate and spatially arrange themselves in a physiologically relevant manner, is a major step forward in how the process of bone formation and remodeling can be studied.",
+    "category": "Health Medicine and Biotechnology",
+    "center": "JSC"
+  },
+  {
+    "id": "MSC-TOPS-41",
+    "case_number": "MSC-TOPS-41",
+    "title": "High Quality Tissue Formation Method",
+    "abstract": "NASA Johnson Space Center seeks interested parties for the licensing and commercialization of the High Density Spot Seeding (HDSS) method patented technology used to create 2D and 3D tissue models. \n\nThis method can be used to develop tissue models for a variety of applications including wound treatment, therapy, tissue modeling of skeletal muscle, cardiac muscle, nerve, and bone. The HDSS technique uses an easy four step method that does not require expensive reagents, such as specialized serum or growth factors and compared to traditional methods, HDSS has the potential to yield superior-quality tissue samples.\n\nThis NASA Technology is available for your company to license and develop into a commercial product.  NASA does not manufacture products for commercial sale.",
+    "category": "Health Medicine and Biotechnology",
+    "center": "JSC"
+  },
+  {
+    "id": "MSC-TOPS-96",
+    "case_number": "MSC-TOPS-96",
+    "title": "Noninvasive Therapy for Cartilage Regeneration",
+    "abstract": "Innovators at NASA Johnson Space Center researching time-variance magnetic field (TVMF) therapies have developed a pulsed electromagnetic field (PEMF) device that can alleviate cartilage degradation in synovial joints by promoting the growth of new cartilage. \n\nJoint disorders, whether induced by rheumatism, joint dysplasia, trauma, or surgery, often degrade cartilage and result in intense patient pain. Noninvasive and painless regeneration of a patient\u2019s own tissue offers fewer side-effects than surgical joint replacement or tissue engineering procedures. The PEMF device could simply be wrapped around synovial joints where cartilage-degrading inflammation is located. \n\nThis pulsed electromagnetic field technology is at a technology readiness level (TRL) 6 (system/sub-system model or prototype demonstration in an operational environment) and the related patent is available for licensing. Please note that NASA does not manufacture products itself for commercial sale.",
+    "category": "Health Medicine and Biotechnology",
+    "center": "JSC"
+  },
+  {
+    "id": "LEW-TOPS-32",
+    "case_number": "LEW-TOPS-32",
+    "title": "How to Train Shape Memory Alloys",
+    "abstract": "Shape memory alloys (SMAs), sometimes known as \"smart metals,\" provide a lightweight, solid-state alternative to conventional actuators and switches, such as hydraulic, pneumatic, or motor-based systems. To function properly, SMAs must be \"trained\" to return to a previous form when heated, and innovators at NASA's Glenn Research Center have developed a remarkable new method of completing this training at a fraction of the time and cost of conventional training techniques. Glenn's technique uses mechanical cycling, rather than more complicated and time-consuming thermal cycling, to train SMAs before implementation. In addition, this new approach to training allows SMAs to be applied to complex geometric components, so that they may be used in a broader number of applications.",
+    "category": "Materials and Coatings",
+    "center": "GRC"
+  }
+]
