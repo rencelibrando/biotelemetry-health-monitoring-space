@@ -1,29 +1,18 @@
-/** @type {import('tailwindcss').Config} */
+﻿/** @type {import('tailwindcss').Config} */
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        space: {
-          950: '#020617',
-          900: '#0a0f24',
-          800: '#111836',
-          700: '#1e2952',
-          accent: '#00f2fe',
-          alert: '#ff3366',
-          warning: '#f59e0b',
-          success: '#10b981',
-        }
+        background: 'var(--background)', surface: 'var(--surface)', accent: 'rgb(var(--accent-rgb) / <alpha-value>)', primary: 'rgb(var(--accent-rgb) / <alpha-value>)',
+        content: 'var(--text)', muted: 'var(--muted)', success: 'var(--success)', warning: 'var(--warning)', critical: 'var(--critical)',
+        space: { 950: 'var(--background)', 900: 'var(--surface)', 800: 'var(--surface-raised)', accent: 'rgb(var(--accent-rgb) / <alpha-value>)', alert: 'var(--critical)', warning: 'var(--warning)', success: 'var(--success)' },
       },
-      fontFamily: {
-        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
-      }
+      fontFamily: { sans: ['Inter', 'Segoe UI', 'system-ui', 'sans-serif'] },
     },
   },
   plugins: [],
-}
+};
+
 
