@@ -1032,9 +1032,8 @@ export function speakAssistantReply(
       } catch {
         localVoices = [];
       }
-      const eligibleVoices = isOffline
-        ? localVoices
-        : localVoices.filter(voice => !isRoboticVoice(voice));
+      const nonRobotic = localVoices.filter(voice => !isRoboticVoice(voice));
+      const eligibleVoices = isOffline || !nonRobotic.length ? localVoices : nonRobotic;
       if (!eligibleVoices.length) return false;
       speakChunk(0, true, false, undefined, false);
       return true;
@@ -1207,13 +1206,15 @@ export function speakAssistantReply(
         flushDeferredAlertIfIdle();
         return;
       }
+      if (cause instanceof Error && /timed out/i.test(cause.message)) {
+        activeSessionId++;
+        callbacks?.onError?.(cause.message);
+        flushDeferredAlertIfIdle();
+        return;
+      }
       if (tryLocalFallback()) return;
       activeSessionId++;
-      if (cause instanceof Error && /timed out/i.test(cause.message)) {
-        callbacks?.onError?.(cause.message);
-      } else {
-        callbacks?.onError?.(fallbackErrorMessage);
-      }
+      callbacks?.onError?.(fallbackErrorMessage);
       flushDeferredAlertIfIdle();
     }
   };
