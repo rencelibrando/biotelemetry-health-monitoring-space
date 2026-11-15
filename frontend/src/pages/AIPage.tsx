@@ -185,7 +185,7 @@ export function AIMessage({
         <div className="message-header-row">
           <span className="message-author">
             {message.role === 'assistant'
-              ? `Flight Surgeon AI · ${message.reply?.sourceLabel ?? 'onboard'}`
+              ? 'Flight Surgeon AI'
               : 'You'}
           </span>
           {message.role === 'assistant' && message.reply && ttsSupported && onToggleSpeak && (
@@ -694,7 +694,7 @@ export function AIPage({
                   ? 'Offline · assistant unavailable'
                   : gateway
                     ? 'Grounded in live telemetry, 7-day trends & NASA OSDR baselines'
-                    : 'Onboard clinical rules · connect API key for Gemini'}
+                    : 'Onboard clinical rules · connect API key for AI assistant'}
               </p>
             </div>
             {ttsSupported && (

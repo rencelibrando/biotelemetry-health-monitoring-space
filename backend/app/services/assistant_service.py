@@ -877,8 +877,8 @@ async def analyze_medical_image(
                     str(a).strip() for a in (ai_json.get("recommended_actions") or protocol["normal_actions"])[:4]
                 ],
                 ground_consult_required=bool(ai_json.get("ground_consult_required", sev != "nominal")),
-                analysis_source="gemini-vision",
-                image_quality=f"{fmt} {width}x{height} ({model_tag})" if width and height else f"{fmt} frame ({model_tag})",
+                analysis_source="vision-analysis",
+                image_quality=f"{fmt} {width}x{height}" if width and height else f"{fmt} frame",
             )
 
     # Deterministic offline protocol-assisted inspection when offline or Gemini key is absent.

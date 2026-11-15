@@ -431,7 +431,7 @@ export function SpaceCheckInFields({ step, draft, update }: Props) {
             />
           </div>
           <p className="helper">
-            Personal reflections stay in this local prototype. Free-text notes are not sent to Gemini.
+            Personal reflections stay in this local prototype. Free-text notes are kept private on-device.
           </p>
         </>
       )}

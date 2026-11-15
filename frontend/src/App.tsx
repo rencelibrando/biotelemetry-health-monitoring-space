@@ -46,14 +46,19 @@ import {
   stopAlertSpeaking,
   syncActiveAlertSpeechKeys,
 } from './services/voiceAssistant';
+import { LandingPage } from './pages/LandingPage';
 import type { ImageAssessmentRecord, SelfExamType } from './types/telemetry';
 import type { Page } from './types/wellness';
 
 type Telemetry = ReturnType<typeof useTelemetry>;
 type SpaceWeatherState = ReturnType<typeof useSpaceWeather>;
 
-function getPage(): Page {
+const LANDING_SECTIONS = new Set(['overview', 'problem', 'capabilities', 'architecture', 'science', 'team']);
+type ExtendedPage = Page | 'landing';
+
+function getPage(): ExtendedPage {
   const hash = window.location.hash.replace(/^#\/?/, '').trim();
+  if (hash === '' || hash === 'landing' || LANDING_SECTIONS.has(hash)) return 'landing';
   return ['dashboard', 'checkin', 'analytics', 'missions', 'ai'].includes(hash) ? hash as Page : 'dashboard';
 }
 
@@ -457,7 +462,7 @@ function Workspace({ telemetry: t, spaceWeather: sw, page }: { telemetry: Teleme
 export function App() {
   const telemetry = useTelemetry();
   const spaceWeather = useSpaceWeather(telemetry.offline);
-  const [page, setPage] = useState<Page>(getPage);
+  const [page, setPage] = useState<ExtendedPage>(getPage);
   const [contrast, setContrast] = useState(false);
   const closeDiagnostic = useCallback(() => telemetry.setDiagnostic(null), [telemetry.setDiagnostic]);
   const announcedAlertsRef = useRef(new Map<string, AlertEpisodeState>());
@@ -477,6 +482,7 @@ export function App() {
 
   // Announce alerts only for the selected crew profile while keeping async audio alive across route tabs.
   useEffect(() => {
+    if (page === 'landing') return;
     const profileAlerts = selectAlertsForProfile(telemetry.alerts, telemetry.activeId);
     const newAlerts = selectNewlyTriggeredAlerts(profileAlerts, announcedAlertsRef.current);
     const activeKeys = new Set(
@@ -490,13 +496,47 @@ export function App() {
     for (const item of announcements) {
       speakBackgroundAlert(item.text, { tag: item.astronautId, alertKeys: item.alertKeys });
     }
-  }, [telemetry.alerts, telemetry.activeId, crewNames]);
+  }, [telemetry.alerts, telemetry.activeId, crewNames, page]);
 
   useEffect(() => {
-    const navigate = () => { setPage(getPage()); window.scrollTo({ top: 0 }); };
-    window.addEventListener('hashchange', navigate); return () => window.removeEventListener('hashchange', navigate);
+    const navigate = () => {
+      const next = getPage();
+      setPage(next);
+      const hash = window.location.hash.replace(/^#\/?/, '').trim();
+      if (LANDING_SECTIONS.has(hash)) {
+        const el = document.getElementById(hash);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+          return;
+        }
+      }
+      if (next !== 'landing') {
+        window.scrollTo({ top: 0 });
+      }
+    };
+    window.addEventListener('hashchange', navigate);
+    return () => window.removeEventListener('hashchange', navigate);
   }, []);
-  useEffect(() => { document.title = `BioTelemetry · ${navigation.find(item => item.id === page)?.label}`; }, [page]);
+
+  useEffect(() => {
+    if (page === 'landing') {
+      document.title = 'BioTelemetry · Deep Space Health Autonomy';
+    } else {
+      document.title = `BioTelemetry · ${navigation.find(item => item.id === page)?.label || 'Dashboard'}`;
+    }
+  }, [page]);
+
+  if (page === 'landing') {
+    return (
+      <LandingPage
+        onEnterApp={(targetPage?: Page) => {
+          const next = targetPage || 'dashboard';
+          window.location.hash = next;
+          setPage(next);
+        }}
+      />
+    );
+  }
 
   return (
     <AppShell

@@ -193,7 +193,7 @@ function buildSuggestedActions(question: string, context: AssistantContext, mode
 export const demoAssistant: AssistantService = {
   async ask(question, context, options = {}) {
     if (!navigator.onLine) {
-      throw new Error('You’re offline. Gemini is unavailable. Your saved records and countermeasures remain accessible.');
+      throw new Error('You’re offline. AI assistant is unavailable. Your saved records and countermeasures remain accessible.');
     }
     if (!context.astronautId) throw new Error('Choose an astronaut before asking about saved records.');
 
@@ -495,7 +495,7 @@ export const flightAssistant: AssistantService = {
           facts: res.summary,
           explanation: res.actions.join(' '),
           action: `Escalate when: ${res.escalate_when}`,
-          sourceLabel: `${res.model} (${res.source})`,
+          sourceLabel: undefined,
           nasaReference: res.nasa_reference,
           escalate: res.escalate_when,
           suggestedActions: res.suggested_actions?.length

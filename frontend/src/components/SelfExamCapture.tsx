@@ -545,9 +545,9 @@ export function SelfExamCapture({
           {latestResult ? (
             <div className={`observation-alert ${latestResult.severity === 'critical' ? 'critical' : latestResult.severity === 'nominal' ? 'info' : ''}`} role="status">
               <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-                <strong>Assessment Result ({latestResult.analysisSource})</strong>
+                <strong>Clinical Assessment Result</strong>
                 <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-                  <span className="pill">{latestResult.severity.toUpperCase()} · {latestResult.imageQuality}</span>
+                  <span className="pill">{latestResult.severity.toUpperCase()} · {latestResult.imageQuality.replace(/\s*\([^)]*\)$/, '')}</span>
                   {ttsSupported ? (
                     <button
                       type="button"
@@ -707,7 +707,7 @@ export function SelfExamCapture({
                     <span className="pill">{item.severity}</span>
                   </div>
                   <p>{item.findings}</p>
-                  <small>{new Date(item.recordedAt).toLocaleString()} · {item.analysisSource}</small>
+                  <small>{new Date(item.recordedAt).toLocaleString()}</small>
                 </li>
               ))}
             </ul>

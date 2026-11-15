@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { LayoutDashboard, ClipboardCheck, BarChart3, Orbit, Sparkles, Wifi, WifiOff, ChevronDown, ChevronRight, Volume2, VolumeX, Contrast, SlidersHorizontal } from 'lucide-react';
+import { LayoutDashboard, ClipboardCheck, BarChart3, Orbit, Sparkles, Wifi, WifiOff, ChevronDown, ChevronRight, Volume2, VolumeX, Contrast, SlidersHorizontal, ArrowLeft } from 'lucide-react';
 import type { Astronaut } from '../types/telemetry';
 import type { Page } from '../types/wellness';
 
@@ -55,11 +55,20 @@ export function AppShell(props: ShellProps) {
       <aside className="sidebar">
         <a href="#dashboard" className="brand-link" aria-label="BioTelemetry Home"><BrandLogo /></a>
         <nav aria-label="Main navigation" className="side-nav">{navigation.map(({ id, label, icon: Icon }) => <a key={id} href={`#${id}`} aria-current={props.page === id ? 'page' : undefined}><Icon size={20} /><span>{label}</span>{props.page === id && <ChevronRight size={16} />}</a>)}</nav>
-        <div className="sidebar-footer"><span className="status-dot" /> SPACE APPS CHALLENGE 2026<small>Monitoring Human Health Beyond Earth</small></div>
+        <div className="sidebar-footer">
+          <a href="#landing" className="sidebar-overview-link">Mission Overview</a>
+          <div><span className="status-dot" /> SPACE APPS CHALLENGE 2026<small>Monitoring Human Health Beyond Earth</small></div>
+        </div>
       </aside>
       <div className={`main-shell main-shell-${props.page}`} data-page={props.page}>
         <header className="topbar">
-          <a href="#dashboard" className="mobile-brand" aria-label="BioTelemetry Home"><BrandLogo compact /></a>
+          <div className="topbar-left">
+            <a href="#dashboard" className="mobile-brand" aria-label="BioTelemetry Home"><BrandLogo compact /></a>
+            <a href="#landing" className="topbar-homepage-btn" title="Return to mission homepage">
+              <ArrowLeft size={14} aria-hidden="true" />
+              <span>Homepage</span>
+            </a>
+          </div>
           <div className="topbar-right">
             <ConnectionStatus offline={props.offline} gateway={props.gateway} />
             <div className="topbar-profile-group">

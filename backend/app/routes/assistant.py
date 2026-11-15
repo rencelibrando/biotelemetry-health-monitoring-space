@@ -50,6 +50,6 @@ async def transcribe_assistant_audio(req: AudioTranscribeRequest):
     if not result:
         raise HTTPException(
             status_code=503,
-            detail="Speech transcription service is unavailable. Ensure GEMINI_API_KEY is active and speak clearly.",
+            detail="Speech transcription service is unavailable. Please speak clearly into the microphone.",
         )
     return result

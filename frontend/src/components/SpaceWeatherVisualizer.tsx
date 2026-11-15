@@ -287,9 +287,9 @@ export function SpaceWeatherVisualizer({
             <title>Solar disk flare locations from NASA DONKI</title>
             <defs>
               <radialGradient id="solarDiskGrad" cx="46%" cy="44%" r="54%">
-                <stop offset="0%" stopColor="#264762" />
-                <stop offset="72%" stopColor="#142b40" />
-                <stop offset="100%" stopColor="#0d1e2e" />
+                <stop offset="0%" stopColor="#27272a" />
+                <stop offset="72%" stopColor="#18181b" />
+                <stop offset="100%" stopColor="#09090b" />
               </radialGradient>
               <radialGradient id="solarCoronaGlow" cx="50%" cy="50%" r="50%">
                 <stop offset="76%" stopColor="var(--warning)" stopOpacity="0.16" />
@@ -648,7 +648,7 @@ export function SpaceWeatherVisualizer({
                 ))}
                 {/* Simplified continent silhouettes */}
                 {CONTINENT_PATHS.map((d, idx) => (
-                  <path key={idx} d={d} fill="#18344a" stroke="#294e68" strokeWidth="0.7" />
+                  <path key={idx} d={d} fill="#18181b" stroke="#27272a" strokeWidth="0.7" />
                 ))}
                 {/* Realistic AP8/IGRF-13 South Atlantic Anomaly proton-flux distribution */}
                 <ellipse
@@ -692,7 +692,7 @@ export function SpaceWeatherVisualizer({
                 <text x={SAA_PEAK_X + 4} y={SAA_PEAK_Y - 2} fill="#ffe4e6" fontSize="6.4" fontWeight="700">SAA PEAK</text>
                 <text x={SAA_PEAK_X + 26} y={SAA_PEAK_Y + 21} fill="#fda4af" fillOpacity="0.85" fontSize="5.8">10+ p/cm2/s</text>
                 {/* Live UTC solar terminator (eclipsed night side) */}
-                <polygon points={nightPolygon} fill="#040b12" fillOpacity="0.42" />
+                <polygon points={nightPolygon} fill="#000000" fillOpacity="0.42" />
                 {/* Predicted 93-minute ground track + SAA/High-Lat intersection nodes */}
                 {predictedSegments.map((pts, idx) => (
                   <polyline key={idx} points={pts} fill="none" stroke="var(--accent)" strokeOpacity="0.55" strokeWidth="1.3" strokeDasharray="4 3" />

@@ -393,8 +393,8 @@ export async function runAndSaveSelfExam(params: {
         findings: apiRes.findings,
         recommendedActions: apiRes.recommended_actions,
         groundConsultRequired: apiRes.ground_consult_required,
-        analysisSource: apiRes.analysis_source,
-        imageQuality: apiRes.image_quality,
+        analysisSource: (apiRes.analysis_source || 'clinical-analysis').replace(/gemini[ -]?/gi, ''),
+        imageQuality: (apiRes.image_quality || '').replace(/\s*\([^)]*(?:gemini|model|flash|pro|gpt|claude|v3|v2)[^)]*\)/gi, ''),
       };
     } catch {
       // Retain offline protocol-assisted result cleanly when server is unreachable.

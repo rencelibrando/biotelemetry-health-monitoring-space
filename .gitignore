@@ -51,6 +51,7 @@ Thumbs.db
 .agents/
 .superpowers/
 docs/superpowers/
+reference/
 
 
 .vercel

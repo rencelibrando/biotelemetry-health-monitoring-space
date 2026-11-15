@@ -294,8 +294,8 @@ function createMultidimensionalBackdrop(
     );
   };
 
-  addFloorSegments(minorVerts, 0x163d59, 0.34);
-  addFloorSegments(majorVerts, 0x225a82, 0.52);
+  addFloorSegments(minorVerts, 0x27272a, 0.34);
+  addFloorSegments(majorVerts, 0x3f3f46, 0.52);
   addFloorSegments([-halfExtent, floorY + 0.001, 0, halfExtent, floorY + 0.001, 0], 0x9e424e, 0.42);
   addFloorSegments([0, floorY + 0.001, -halfExtent, 0, floorY + 0.001, halfExtent], 0x468854, 0.42);
 
@@ -566,7 +566,7 @@ export default function BodyAnatomy3D({
       const initHeight = Math.max(container.clientHeight, 320);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.setSize(initWidth, initHeight);
-      renderer.setClearColor(0x051322, 1);
+      renderer.setClearColor(0x09090b, 1);
       renderer.domElement.className = 'body-3d-canvas';
       renderer.domElement.tabIndex = 0;
       renderer.domElement.style.cursor = 'grab';
@@ -578,7 +578,7 @@ export default function BodyAnatomy3D({
       container.appendChild(renderer.domElement);
 
       const scene = new THREE.Scene();
-      scene.fog = new THREE.FogExp2(0x051322, 0.16);
+      scene.fog = new THREE.FogExp2(0x09090b, 0.16);
 
       const camera = new THREE.PerspectiveCamera(36, initWidth / initHeight, 0.03, 20);
       // Frame the full head-to-feet astronaut figure symmetrically with top HUD and floor clearance.
@@ -622,7 +622,7 @@ export default function BodyAnatomy3D({
       // Keep human body & organs un-fogged so anatomical visualization stays crisp behind depth grid lines
       const shellUniforms = {
         uRimColor: { value: new THREE.Color(0x67e8f9) },
-        uDeepColor: { value: new THREE.Color(0x09243c) },
+        uDeepColor: { value: new THREE.Color(0x18181b) },
         uRimPower: { value: 1.95 },
         uCoreOpacity: { value: 0.06 },
         uRimOpacity: { value: 0.84 },
