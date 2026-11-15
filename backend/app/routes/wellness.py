@@ -30,7 +30,7 @@ async def sync_checkin(req: CheckInSyncRequest):
 
 
 @router.get("/checkins/{astronaut_id}")
-async def list_checkins(astronaut_id: str, limit: int = 30):
+async def list_checkins(astronaut_id: str, limit: int = 60):
     supabase = get_supabase()
     if not supabase:
         return {"records": []}
@@ -68,7 +68,7 @@ async def sync_imaging_assessment(req: ImagingAssessmentSyncRequest):
 
 
 @router.get("/assessments/{astronaut_id}")
-async def list_imaging_assessments(astronaut_id: str, limit: int = 20):
+async def list_imaging_assessments(astronaut_id: str, limit: int = 40):
     supabase = get_supabase()
     if not supabase:
         return {"records": []}

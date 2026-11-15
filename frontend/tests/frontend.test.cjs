@@ -11,9 +11,11 @@ const ts = require('typescript');
 for (const extension of ['.ts', '.tsx']) {
   require.extensions[extension] = (module, filename) => {
     const source = fs.readFileSync(filename, 'utf8').replace(/\bimport\.meta\.env\b/g, '({})');
-    const result = ts.transpileModule(source, { compilerOptions: {
-      module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX,
-    }, fileName: filename });
+    const result = ts.transpileModule(source, {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX,
+      }, fileName: filename
+    });
     module._compile(result.outputText, filename);
   };
 }
@@ -21,24 +23,30 @@ class TableAdapter {
   constructor(key) { this.key = key; this.data = new Map(); this.failure = false; }
   async add(record) { if (this.failure) throw new Error('Storage unavailable'); if (this.data.has(record[this.key])) throw new Error('Duplicate'); this.data.set(record[this.key], structuredClone(record)); }
   async put(record) { if (this.failure) throw new Error('Storage unavailable'); this.data.set(record[this.key], structuredClone(record)); }
+  async bulkPut(records) { if (this.failure) throw new Error('Storage unavailable'); for (const record of records) this.data.set(record[this.key], structuredClone(record)); }
   async get(key) { return structuredClone(this.data.get(key)); }
   async delete(key) { this.data.delete(key); }
   async bulkDelete(keys) { keys.forEach(key => this.data.delete(key)); }
+  async toArray() { return structuredClone([...this.data.values()]); }
   filter(predicate) { const rows = [...this.data.values()].filter(predicate); return { toArray: async () => structuredClone(rows), count: async () => rows.length }; }
-  where(field) { return { equals: value => {
-    let reverse = false;
-    const rows = () => [...this.data.values()].filter(row => row[field] === value);
-    const collection = { toArray: async () => structuredClone(rows()), reverse() { reverse = !reverse; return collection; }, async sortBy(key) { const sorted = rows().sort((a,b) => a[key].localeCompare(b[key])); return structuredClone(reverse ? sorted.reverse() : sorted); } };
-    return collection;
-  } }; }
+  where(field) {
+    return {
+      equals: value => {
+        let reverse = false;
+        const rows = () => [...this.data.values()].filter(row => row[field] === value);
+        const collection = { toArray: async () => structuredClone(rows()), reverse() { reverse = !reverse; return collection; }, async sortBy(key) { const sorted = rows().sort((a, b) => a[key].localeCompare(b[key])); return structuredClone(reverse ? sorted.reverse() : sorted); } };
+        return collection;
+      }
+    };
+  }
 }
 const db = { checkins: new TableAdapter('id'), missionCompletions: new TableAdapter('key'), vitalsQueue: new TableAdapter('localId'), imagingAssessments: new TableAdapter('id'), transaction: async (_mode, _table, work) => work() };
 const loadOriginal = Module._load;
-Module._load = function(request, parent, isMain) {
+Module._load = function (request, parent, isMain) {
   if (request === '../db/localDb') return { localDb: db };
   return loadOriginal.call(this, request, parent, isMain);
 };
-const { checkins, validateCheckIn, saveCheckInOnce } = require('../src/services/checkins.ts');
+const { checkins, validateCheckIn, saveCheckInOnce, toRemoteCheckInPayload, remoteRowToCheckIn } = require('../src/services/checkins.ts');
 const { missions, localDate } = require('../src/services/missions.ts');
 const { recordsInRange, average } = require('../src/services/analytics.ts');
 const { demoAssistant } = require('../src/services/ai.ts');
@@ -60,14 +68,29 @@ const { parseHeartRateMeasurement } = require('../src/services/bluetoothHr.ts');
 const { parseSolarLocation, toSpaceWeatherDatum, saveSpaceWeatherCache, loadSpaceWeatherCache, mergeRealtimeSpaceWeatherEvent } = require('../src/services/spaceWeather.ts');
 const { SpaceWeatherVisualizer, formatEtaCountdown } = require('../src/components/SpaceWeatherVisualizer.tsx');
 const { AlertBanner } = require('../src/components/AlertBanner.tsx');
+const {
+  buildAlertAnnouncementText,
+  buildAlertAnnouncementsByCrew,
+  formatSingleAlertSpeech,
+  selectNewlyTriggeredAlerts,
+} = require('../src/services/alertSpeech.ts');
 const { AnomalyDemoBar } = require('../src/components/AnomalyDemoBar.tsx');
 const { DiagnosticsModal } = require('../src/components/DiagnosticsModal.tsx');
 const {
   computeSpaceEnvironmentRisks,
   defaultSimulationConfig,
   evaluateLocalAlerts,
+  isSimulationConfigEqual,
 } = require('../src/services/simulationConfig.ts');
 const { buildPropagatedIssFeed, parseEnlilFrameLabel } = require('../src/services/spaceWeather.ts');
+const { remoteRowToAssessment } = require('../src/services/selfExams.ts');
+const {
+  seedSimulatedHistory,
+  reconcileCrewAlerts,
+  simulatedVitals,
+  syncActiveProfileAlerts,
+} = require('../src/hooks/useTelemetry.ts');
+const { AnalyticsPage } = require('../src/pages/AnalyticsPage.tsx');
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
 const sample = (overrides = {}) => ({ id: 'record-1', astronautId: 'A', createdAt: '2026-11-14T09:00:00Z', sleepHours: 7.5, sleepQuality: 4, fatigue: 2, stress: 3, mood: 'Good', exerciseMinutes: 30, symptoms: '', notes: '', biometrics: null, syncStatus: 'pending', ...overrides });
@@ -96,7 +119,7 @@ test('mission toggles keep independent astronaut and date histories', async () =
   assert.equal(localDate(new Date(2026, 10, 14, 23, 59)), '2026-11-14');
 });
 test('daily, weekly and monthly filters include boundaries and exclude future records', () => {
-  const now = new Date(2026, 10, 14, 12); const recordAt = (day, hour=0) => sample({ createdAt: new Date(2026, 10, day, hour).toISOString() });
+  const now = new Date(2026, 10, 14, 12); const recordAt = (day, hour = 0) => sample({ createdAt: new Date(2026, 10, day, hour).toISOString() });
   const entries = [recordAt(14), recordAt(8), recordAt(7), recordAt(1), recordAt(14, 13)];
   assert.equal(recordsInRange(entries, 'day', now).length, 1); assert.equal(recordsInRange(entries, 'week', now).length, 2); assert.equal(recordsInRange(entries, 'month', now).length, 4);
   assert.equal(average([]), null); assert.equal(average([60, 70]), 65);
@@ -125,12 +148,14 @@ test('confirmed sync deletes only sent astronaut records and retains newly buffe
   assert.deepEqual([...db.vitalsQueue.data.keys()], [2, 3]);
 });
 test('responsive shell exposes all five routes, selected route, and accessible controls', () => {
-  const noop = () => {};
-  for (const page of ['dashboard','checkin','analytics','missions','ai']) {
-    const html = renderToStaticMarkup(React.createElement(AppShell, { page, crew: [{ id: 'A', name: 'Demo Crew' }], activeId: 'A', selectCrew: noop, crewDemo: true, offline: true, gateway: false, los: true, toggleLos: noop, pending: 2, syncing: false, sync: noop, sound: false, toggleSound: noop, contrast: false, toggleContrast: noop }, 'Content'));
-    for (const route of ['dashboard','checkin','analytics','missions','ai']) assert.ok(html.includes(`href="#${route}"`));
+  const noop = () => { };
+  for (const page of ['dashboard', 'checkin', 'analytics', 'missions', 'ai']) {
+    const html = renderToStaticMarkup(React.createElement(AppShell, { page, crew: [{ id: 'A', name: 'Demo Crew' }], activeId: 'A', selectCrew: noop, crewDemo: true, offline: true, gateway: false, los: true, toggleLos: noop, sound: false, toggleSound: noop, contrast: false, toggleContrast: noop }, 'Content'));
+    for (const route of ['dashboard', 'checkin', 'analytics', 'missions', 'ai']) assert.ok(html.includes(`href="#${route}"`));
     assert.equal((html.match(/aria-current="page"/g) || []).length, 2); assert.match(html, /Skip to content/); assert.match(html, /Offline · saved on this device/); assert.match(html, /Select astronaut/);
-    for (const label of ['Home', 'Check-In', 'My Health Trends', 'Daily Activities', 'AI Assistant']) assert.ok(html.includes(label));
+    assert.doesNotMatch(html, /CREW WORKSPACE/i);
+    assert.doesNotMatch(html, /breadcrumb/);
+    for (const label of ['Home', 'Check-In', 'My Health Trends', 'Countermeasures', 'AI Assistant', 'Protocols']) assert.ok(html.includes(label));
   }
 });
 
@@ -163,7 +188,7 @@ test('wizard preserves answers and maps exercise completion to the unchanged sav
   assert.equal(resumed.exerciseMinutes, 30); assert.equal(resumed.biometrics.heart_rate, 70);
 });
 test('wizard renders all step fields but only exposes the current fieldset', () => {
-  const html = renderToStaticMarkup(React.createElement(CheckInPage, { astronautId: 'A', vitals: { astronaut_id: 'A' }, records: [], offline: true, gateway: false, onSaved: async () => {} }));
+  const html = renderToStaticMarkup(React.createElement(CheckInPage, { astronautId: 'A', vitals: { astronaut_id: 'A' }, records: [], offline: true, gateway: false, onSaved: async () => { } }));
   assert.equal((html.match(/<fieldset/g) || []).length, 3);
   assert.equal((html.match(/<fieldset hidden=""/g) || []).length, 2);
   for (const field of ['sleepHours', 'sleepQuality', 'fatigue', 'stress', 'mood', 'symptoms', 'exerciseCompletion', 'notes']) assert.ok(html.includes(`name="${field}"`));
@@ -171,10 +196,11 @@ test('wizard renders all step fields but only exposes the current fieldset', () 
 });
 test('activity suggestions use saved progress and check-in state, with at most three choices', () => {
   const date = '2026-11-14';
-  assert.deepEqual(recommendedActivities([], date, false).map(item => item.id), ['sleep', 'mood', 'exercise']);
-  assert.deepEqual(recommendedActivities([], date, true).map(item => item.id), ['patterns', 'recovery', 'reflection']);
-  assert.deepEqual(recommendedActivities([{ date, missionId: 'sleep' }, { date: '2026-11-13', missionId: 'mood' }], date, false).map(item => item.id), ['mood', 'exercise']);
-  assert.equal(recommendedActivities(['sleep', 'mood', 'exercise'].map(missionId => ({ date, missionId })), date, false).length, 0);
+  assert.deepEqual(recommendedActivities([], date, false).map(item => item.id), ['daily-checkin', 'physical-ared', 'hydration-target']);
+  assert.deepEqual(recommendedActivities([], date, true).map(item => item.id), ['physical-ared', 'hydration-target', 'sans-ultrasound']);
+  assert.deepEqual(recommendedActivities([{ date, missionId: 'daily-checkin' }, { date: '2026-11-13', missionId: 'hydration-target' }], date, false).map(item => item.id), ['physical-ared', 'hydration-target']);
+  assert.deepEqual(recommendedActivities([{ date, missionId: 'exercise' }], date, false).map(item => item.id), ['daily-checkin', 'hydration-target']);
+  assert.equal(recommendedActivities(['daily-checkin', 'physical-ared', 'hydration-target'].map(missionId => ({ date, missionId })), date, false).length, 0);
 });
 test('production PWA references valid icons and keeps API reads out of cache', () => {
   const dist = path.join(__dirname, '../dist'); const manifest = JSON.parse(fs.readFileSync(path.join(dist, 'manifest.webmanifest')));
@@ -206,7 +232,7 @@ test('drafts restore every answer and current step after a new session, isolated
   const afterReload = createDraftStore(storage);
   assert.deepEqual(afterReload.load('A'), a); assert.deepEqual(afterReload.load('B'), b); assert.equal(afterReload.load('C'), null);
   globalThis.window = { localStorage: storage };
-  const html = renderToStaticMarkup(React.createElement(CheckInPage, { astronautId: 'A', vitals: { astronaut_id: 'A' }, records: [], offline: true, gateway: false, onSaved: () => {} }));
+  const html = renderToStaticMarkup(React.createElement(CheckInPage, { astronautId: 'A', vitals: { astronaut_id: 'A' }, records: [], offline: true, gateway: false, onSaved: () => { } }));
   assert.match(html, /Step 3 of 3/); assert.match(html, /A notes/); assert.match(html, /A symptoms/); assert.match(html, /value="35"/); assert.match(html, /unfinished check-in was restored/); assert.doesNotMatch(html, /value="6"/);
 });
 test('failed record writes retain drafts; successful submissions clear only that astronaut draft', async () => {
@@ -276,7 +302,7 @@ test('activity changes block duplicate actions while pending and require recover
   const pending = store.toggleActivity('sleep', localDate());
   await assert.rejects(store.toggleActivity('sleep', localDate()), /Wait for/); assert.equal(calls, 1); write.resolve(); await pending;
   let reads = 0;
-  const unreliable = createWellnessStore('A', checkins, { list: async () => { if (reads++) throw new Error('Read failed'); return []; }, toggle: async () => {} });
+  const unreliable = createWellnessStore('A', checkins, { list: async () => { if (reads++) throw new Error('Read failed'); return []; }, toggle: async () => { } });
   await unreliable.reload(); await assert.rejects(unreliable.toggleActivity('sleep', localDate()), /Could not confirm/);
   assert.match(unreliable.getSnapshot().activitiesError, /Retry loading/); assert.equal(unreliable.getSnapshot().activitySaving, false);
   await assert.rejects(unreliable.toggleActivity('sleep', localDate()), /Wait for/);
@@ -298,13 +324,13 @@ test('AI scopes actual records, latest observations and today activity counts to
 test('assistant cannot submit while saved context is loading or unavailable', () => {
   for (const status of [{ recordsLoading: true }, { recordsError: 'Read failed' }]) {
     const html = renderToStaticMarkup(React.createElement(AIPage, { context: { astronautId: 'A', records: [], alerts: [], completions: [] }, offline: false, ...status }));
-    assert.match(html, /Demo mode/); assert.match(html, /disabled=""/); assert.match(html, status.recordsLoading ? /Loading saved records/ : /Saved context could not be loaded/);
+    assert.match(html, /Onboard clinical rules/); assert.doesNotMatch(html, /Flight AI · Connected/); assert.match(html, /Pre-EVA Readiness Brief/); assert.match(html, /disabled=""/); assert.match(html, status.recordsLoading ? /Loading saved records/ : /Saved context could not be loaded/);
   }
 });
 
 test('confirmed local writes notify the current profile view even when submission began on an abandoned screen', async () => {
   const current = createWellnessStore('A'), other = createWellnessStore('B');
-  const stopCurrent = current.subscribe(() => {}), stopOther = other.subscribe(() => {});
+  const stopCurrent = current.subscribe(() => { }), stopOther = other.subscribe(() => { });
   await Promise.all([current.reload(), other.reload()]);
   await saveCheckInOnce(sample()); // No explicit acceptCheckIn callback from the original screen.
   assert.equal(current.getSnapshot().records.length, 1); assert.equal(other.getSnapshot().records.length, 0);
@@ -315,7 +341,7 @@ test('a completed activity write updates a returned profile after the original s
   const service = { list: async () => rows, toggle: async () => { await write.promise; rows = [{ key: 'A:sleep', astronautId: 'A', missionId: 'sleep', date: localDate() }]; } };
   const abandoned = createWellnessStore('A', checkins, service); await abandoned.reload();
   const pending = abandoned.toggleActivity('sleep', localDate()); abandoned.cancel();
-  const returned = createWellnessStore('A', checkins, service); const stop = returned.subscribe(() => {}); await returned.reload();
+  const returned = createWellnessStore('A', checkins, service); const stop = returned.subscribe(() => { }); await returned.reload();
   assert.equal(returned.getSnapshot().completions.length, 0);
   write.resolve(); await pending;
   assert.equal(returned.getSnapshot().completions.length, 1); assert.equal(returned.getSnapshot().activitySaving, false); stop();
@@ -390,7 +416,7 @@ test('manual mission context persists by astronaut and microgravity time exists 
 });
 test('optional analytics show empty states and preserve no-pain zero as a real entry', () => {
   const html = renderToStaticMarkup(React.createElement(SpaceWellnessTrends, { records: [], astronautId: 'A' }));
-  assert.match(html, /No recorded data yet/); assert.match(html, /No sleep times recorded/); assert.match(html, /No mood or stress entries/); assert.match(html, /No environment snapshots saved/);
+  assert.match(html, /No recorded data yet/); assert.match(html, /No sleep times recorded/); assert.match(html, /Isolation &amp; psychosocial connection/); assert.doesNotMatch(html, /Mood &amp; Stress/); assert.match(html, /No environment snapshots saved/);
   const zero = renderToStaticMarkup(React.createElement(SpaceWellnessTrends, { records: [sample({ spaceWellness: { version: 1, mode: 'local-demo', pain: { intensity: 0 } } })], astronautId: 'A' }));
   assert.match(zero, /0.0/); assert.match(zero, /1 saved reading/);
   const foreign = renderToStaticMarkup(React.createElement(SpaceWellnessTrends, { records: [sample({ astronautId: 'B', spaceWellness: { version: 1, mode: 'local-demo', pain: { intensity: 7 } } })], astronautId: 'A' })); assert.doesNotMatch(foreign, /1 saved reading/);
@@ -534,29 +560,29 @@ test('space weather visualizer renders solar flares, ENLIL, NOAA online feed, IS
   assert.doesNotMatch(htmlOffline, /services\.swpc\.noaa\.gov/);
   assert.match(formatEtaCountdown('2099-01-01T12:00:00Z', new Date('2099-01-01T10:30:00Z')), /T-1h 30m/);
 });
-test('app shell renders optional Bluetooth heart sensor setting cleanly', () => {
+test('app shell places sound, high contrast, and offline mode in topbar dropdown without pending or Bluetooth buttons', () => {
   const html = renderToStaticMarkup(React.createElement(AppShell, {
     page: 'dashboard',
     crew: [{ id: 'ASTRO-01', name: 'Dr. Sarah Chen', role: 'Commander', age: 38, resting_hr: 62, baseline_spo2: 98.8, status: 'NOMINAL' }],
     activeId: 'ASTRO-01',
-    selectCrew: () => {},
+    selectCrew: () => { },
     crewDemo: true,
     offline: false,
     gateway: true,
     los: false,
-    toggleLos: () => {},
-    pending: 0,
-    syncing: false,
-    sync: () => {},
+    toggleLos: () => { },
     sound: false,
-    toggleSound: () => {},
+    toggleSound: () => { },
     contrast: false,
-    toggleContrast: () => {},
-    bleStatus: 'disconnected',
-    connectBle: () => {},
-    disconnectBle: () => {},
+    toggleContrast: () => { },
   }, React.createElement('div', null, 'Body')));
-  assert.match(html, /Add Bluetooth heart sensor/);
+  assert.doesNotMatch(html, /measurements not yet sent/);
+  assert.doesNotMatch(html, /Add Bluetooth heart sensor/);
+  assert.doesNotMatch(html, /Bluetooth HR unavailable/);
+  assert.match(html, /aria-controls="topbar-controls-menu"/);
+  assert.match(html, /Sound off/);
+  assert.match(html, /High contrast off/);
+  assert.match(html, /Test offline mode/);
 });
 
 test('live ISS feed, multi-alert triage, simulation distance/duration scenarios, and diagnostics render cleanly', () => {
@@ -594,7 +620,7 @@ test('live ISS feed, multi-alert triage, simulation distance/duration scenarios,
   const alerts = evaluateLocalAlerts(sampleVitals, 7);
   assert.ok(alerts.length >= 4);
   const alertHtml = renderToStaticMarkup(React.createElement(AlertBanner, {
-    alerts, onAcknowledge: () => {}, onAcknowledgeAll: () => {},
+    alerts, onAcknowledge: () => { }, onAcknowledgeAll: () => { },
   }));
   assert.match(alertHtml, /Mark all/);
   assert.match(alertHtml, /Recommended action:/);
@@ -603,7 +629,7 @@ test('live ISS feed, multi-alert triage, simulation distance/duration scenarios,
   assert.equal(risks.length, 6);
   const simHtml = renderToStaticMarkup(React.createElement(AnomalyDemoBar, {
     currentAnomaly: 'COMPOUND_CRISIS', simConfig, vitals: sampleVitals,
-    onTrigger: () => {}, onUpdateSimConfig: () => {}, onRunDiagnostics: () => {}, isDiagnosing: false,
+    onTrigger: () => { }, onUpdateSimConfig: () => { }, onRunDiagnostics: () => { }, isDiagnosing: false,
   }));
   assert.match(simHtml, /36\.2 \/ 100/);
   assert.match(simHtml, /Mars Transfer Cruise/);
@@ -616,7 +642,7 @@ test('live ISS feed, multi-alert triage, simulation distance/duration scenarios,
       recommendations: ['Relocate to storm shelter'], metrics_summary: { mission_zone: 'MARS_TRANSIT', mission_day: 240, cumulative_dose_msv: 737.3 },
       environment_risks: risks,
     },
-    onClose: () => {},
+    onClose: () => { },
   }));
   assert.match(diagHtml, /36\.2 \/ 100/);
   assert.match(diagHtml, /737\.3 mSv/);
@@ -627,7 +653,7 @@ test('live ISS feed, multi-alert triage, simulation distance/duration scenarios,
     { id: 'r-1', astronaut_id: 'ASTRO-01', timestamp: '2026-11-14T18:01:05Z', severity: 'WARNING', alert_type: 'RADIATION_SPIKE', message: 'Rad 35 uSv/h', trigger_metric: 'Rad 35 uSv/h', acknowledged: false },
   ];
   const dedupedAlertHtml = renderToStaticMarkup(React.createElement(AlertBanner, {
-    alerts: dupAlerts, onAcknowledge: () => {}, onAcknowledgeAll: () => {},
+    alerts: dupAlerts, onAcknowledge: () => { }, onAcknowledgeAll: () => { },
   }));
   assert.match(dedupedAlertHtml, /Latest of 2 updates/);
   assert.match(dedupedAlertHtml, /SpO2 86\.4%/);
@@ -690,8 +716,8 @@ test('interactive body map, metabolic/immune alerts, and planetary rover scenari
     latestCheckIn: null,
     completions: [],
     kpIndex: 6.2,
-    onOpenSelfExam: () => {},
-    onAskAi: () => {},
+    onOpenSelfExam: () => { },
+    onAskAi: () => { },
   }));
   assert.match(mapHtml, /Interactive Crew Body Map/);
   assert.match(mapHtml, /\/branding\/human-anatomy\.jpg/);
@@ -774,9 +800,9 @@ test('self-exam local storage, check-in metabolic fields, readiness routines, an
     kpIndex: 2.3,
     offline: true,
     examType: 'ocular_ultrasound',
-    onExamTypeChange: () => {},
+    onExamTypeChange: () => { },
     assessments: astro1List,
-    onAssessmentSaved: () => {},
+    onAssessmentSaved: () => { },
   }));
   assert.match(examHtml, /Ocular Ultrasound \(SANS\)/);
   assert.match(examHtml, /Optic nerve sheath diameter/);
@@ -810,7 +836,8 @@ test('self-exam local storage, check-in metabolic fields, readiness routines, an
     kpIndex: 2.3,
   });
   assert.ok(readiness.streakDays >= 2);
-  assert.ok(readiness.xp > 0);
+  assert.ok(readiness.compliancePct > 0);
+  assert.ok(readiness.verifiedCount >= 2);
   assert.ok(readiness.badges.some(b => b.id === 'ared-pro' && b.earned));
   assert.ok(readiness.badges.some(b => b.id === 'sans-watch' && b.earned));
   assert.ok(readiness.badges.some(b => b.id === 'hydrated' && b.earned));
@@ -819,14 +846,30 @@ test('self-exam local storage, check-in metabolic fields, readiness routines, an
     checkedIn: true,
     astronautId: 'ASTRO-01',
     completions: [],
-    onToggle: async () => {},
+    onToggle: async () => { },
     loading: false,
     loadError: '',
     activitySaving: false,
     readiness,
   }));
   assert.match(missionsHtml, /Check-In Streak/);
-  assert.match(missionsHtml, /XP/);
+  assert.match(missionsHtml, /Today Compliance/);
+  assert.match(missionsHtml, /7d Compliance/);
+  assert.match(missionsHtml, /All Spaceflight Protocols/);
+  assert.doesNotMatch(missionsHtml, /Priority for This Shift/);
+  assert.doesNotMatch(missionsHtml, /Filter countermeasures by category/);
+  assert.doesNotMatch(missionsHtml, /Past countermeasure compliance/);
+  assert.doesNotMatch(missionsHtml, /manual protocols/);
+  assert.ok(
+    missionsHtml.indexOf('All Spaceflight Protocols') < missionsHtml.indexOf('Today’s protocol compliance'),
+    'All Spaceflight Protocols should render on top before compliance summary',
+  );
+  assert.match(missionsHtml, /mission-card completed protocol-done/);
+  assert.match(missionsHtml, /mission-card protocol-pending/);
+  assert.match(missionsHtml, /protocol-status-pill done/);
+  assert.match(missionsHtml, /protocol-status-pill pending/);
+  assert.match(missionsHtml, /Done<\/span>/);
+  assert.match(missionsHtml, /To be completed<\/span>/);
 
   const safeCtx = buildAssistantContext('ASTRO-01', [sample({ astronautId: 'ASTRO-01', symptoms: 'SECRET_SYMPTOM', notes: 'SECRET_NOTE', metabolic: { bloodGlucoseMgDl: 98 } })], [], [], undefined, vitals);
   assert.equal(JSON.stringify(safeCtx).includes('SECRET_SYMPTOM'), false);
@@ -858,9 +901,9 @@ test('self-exam local storage, check-in metabolic fields, readiness routines, an
     telemetryHistory: [vitals, { ...vitals, heart_rate: 76, spo2: 97.8, blood_glucose: 102, timestamp: '2026-11-14T18:01:00Z' }],
     kpIndex: 3.1,
   }));
-  assert.match(liveAnalyticsHtml, /Live Biometric Stream &amp; Rolling Trends/);
+  assert.match(liveAnalyticsHtml, /Open Live Telemetry stream/);
   assert.match(liveAnalyticsHtml, /94\.2 \/ 100/);
-  assert.match(liveAnalyticsHtml, /102/);
+  assert.doesNotMatch(liveAnalyticsHtml, /Live Biometric Stream &amp; Rolling Trends/);
   assert.doesNotMatch(liveAnalyticsHtml, /<details/);
 
   const liveCheckinHtml = renderToStaticMarkup(React.createElement(LiveCheckInPage, {
@@ -869,7 +912,7 @@ test('self-exam local storage, check-in metabolic fields, readiness routines, an
     records: [],
     offline: false,
     gateway: true,
-    onSaved: () => {},
+    onSaved: () => { },
   }));
   assert.match(liveCheckinHtml, /Live Telemetry Context/);
   assert.match(liveCheckinHtml, /94 mg\/dL/);
@@ -884,9 +927,37 @@ test('self-exam local storage, check-in metabolic fields, readiness routines, an
     offline: false,
     gateway: true,
   }));
-  assert.match(liveAiHtml, /HR 70 BPM/);
-  assert.match(liveAiHtml, /Glucose 94 mg\/dL/);
+  assert.equal(safeCtx.vitals.heart_rate, 70);
+  assert.equal(safeCtx.vitals.blood_glucose, 94);
+  assert.doesNotMatch(liveAiHtml, /HR 70 BPM/);
+  assert.doesNotMatch(liveAiHtml, /SpO2 /);
+  assert.doesNotMatch(liveAiHtml, /Glucose 94 mg\/dL/);
+  assert.doesNotMatch(liveAiHtml, /Comms Lag /);
+  assert.doesNotMatch(liveAiHtml, /7d Avg Sleep /);
+  assert.doesNotMatch(liveAiHtml, /ai-live-strip/);
+  assert.match(liveAiHtml, /Medical Consultation/);
+  assert.match(liveAiHtml, /assistant-page/);
+  assert.match(liveAiHtml, /rows="1"/);
+  assert.doesNotMatch(liveAiHtml, /Flight AI/);
+  assert.doesNotMatch(liveAiHtml, /Onboard fallback/);
   assert.doesNotMatch(liveAiHtml, /<details/);
+
+  const cssSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.css'), 'utf8');
+  assert.match(cssSource, /\.assistant-page \.page-heading h1\s*\{[^}]*font-size:\s*clamp\(18px,\s*1\.55vw,\s*21px\)/);
+  assert.match(cssSource, /\.assistant-layout\.assistant-focused\s*\{[^}]*max-width:\s*none/);
+  assert.match(cssSource, /\.assistant-focused \.chat-panel\s*\{[^}]*height:\s*clamp\(320px,\s*calc\(100dvh - 265px\),\s*820px\)/);
+  assert.match(cssSource, /\.main-shell:has\(\.assistant-page\)\s*\{[^}]*height:\s*100dvh/);
+  assert.match(cssSource, /\.assistant-focused \.chat-panel\s*\{[^}]*height:\s*100%;\s*min-height:\s*0/);
+  assert.match(cssSource, /\.assistant-focused \.chat-header h2\s*\{[^}]*font-size:\s*13\.5px/);
+  assert.match(cssSource, /\.assistant-focused \.suggested-questions\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(cssSource, /\.chat-header>div\s*\{[^}]*flex:\s*1/);
+  assert.match(cssSource, /\.chat-composer textarea:focus-visible\s*\{[^}]*outline:\s*none/);
+  assert.match(cssSource, /\.ai-command-bar\s*\{[^}]*padding:\s*12px 20px/);
+  assert.match(cssSource, /\.main-shell\s*\{[^}]*min-height:\s*100dvh/);
+  assert.match(cssSource, /\.page-footer\s*\{[^}]*padding:\s*8px 18px[^}]*font-size:\s*8\.5px/);
+
+  const aiPageSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'AIPage.tsx'), 'utf8');
+  assert.match(aiPageSrc, /const \[autoRead,\s*setAutoRead\] = useState\(true\)/);
 
   const { ECGMonitor } = require('../src/components/ECGMonitor.tsx');
   const { MultiMetricChart: CompactMultiMetric } = require('../src/components/MultiMetricChart.tsx');
@@ -913,4 +984,2183 @@ test('self-exam local storage, check-in metabolic fields, readiness routines, an
   assert.match(appSource, /daily-panel-grid/);
   assert.doesNotMatch(appSource, /dashboard-grid/);
   assert.doesNotMatch(appSource, /dashboard-aside/);
+});
+
+test('countermeasures auto-verify from check-ins/exams, fix physical-ared parity, streamline check-in, and support multi-turn/voice AI safely', async () => {
+  const { evaluateMissionRoutines } = require('../src/services/missionRoutines.ts');
+  const { missionCatalog, normalizeMissionId } = require('../src/services/missions.ts');
+  const { evaluateBodySystems } = require('../src/services/bodyHealthModel.ts');
+  const {
+    isSpeechRecognitionSupported,
+    isMediaRecorderSupported,
+    isVoiceDictationSupported,
+    isSpeechSynthesisSupported,
+    primeAudioPlayback,
+    startVoiceDictation,
+    speakAssistantReply,
+    stopSpeaking,
+  } = require('../src/services/voiceAssistant.ts');
+
+  assert.equal(missionCatalog.length, 9);
+  assert.equal(normalizeMissionId('exercise'), 'physical-ared');
+  assert.equal(normalizeMissionId('sleep'), 'circadian-sleep');
+  assert.equal(normalizeMissionId('mood'), 'daily-checkin');
+
+  const todayIso = new Date().toISOString();
+  const baseVitals = {
+    astronaut_id: 'ASTRO-01',
+    timestamp: todayIso,
+    heart_rate: 72,
+    spo2: 98,
+    core_temp: 36.8,
+    radiation_rate: 14,
+    hrv: 52,
+    mission_day: 35,
+    gravity_g: 0,
+    comms_latency_sec: 1.28,
+    blood_glucose: 94,
+    hydration_pct: 95,
+  };
+
+  // Without manual toggles, Check-In + Self-Exam auto-verify matching protocols.
+  const autoCheckIn = sample({
+    id: 'today-rec',
+    astronautId: 'ASTRO-01',
+    createdAt: todayIso,
+    sleepHours: 7.5,
+    exerciseMinutes: 45,
+    symptoms: 'SECRET SYMPTOMS',
+    notes: 'SECRET NOTES',
+    metabolic: { hydrationMl: 2300, bloodGlucoseMgDl: 94, nutritionQuality: 'optimal' },
+  });
+  const ocularExam = {
+    id: 'exam-ocular-1',
+    astronautId: 'ASTRO-01',
+    examType: 'ocular_ultrasound',
+    recordedAt: todayIso,
+    severity: 'nominal',
+    findings: 'ONSD symmetric and crisp',
+    recommendedActions: [],
+    groundConsultRequired: false,
+    analysisSource: 'local-demo',
+  };
+  const readiness = evaluateMissionRoutines({
+    vitals: baseVitals,
+    records: [autoCheckIn],
+    completions: [],
+    assessments: [ocularExam],
+    kpIndex: 2.3,
+  });
+
+  const byId = new Map(readiness.protocolStatuses.map(s => [s.mission.id, s]));
+  for (const id of ['daily-checkin', 'physical-ared', 'cardio-aerobic', 'hydration-target', 'glucose-nutrition', 'sans-ultrasound', 'circadian-sleep']) {
+    assert.equal(byId.get(id)?.status, 'auto-verified', `expected ${id} auto-verified`);
+    assert.equal(byId.get(id)?.completed, true);
+  }
+  assert.equal(byId.get('dermal-shielding')?.completed, false);
+  assert.equal(byId.get('behavioral-sync')?.completed, false);
+  assert.equal(readiness.verifiedCount, 7);
+  assert.equal(readiness.compliancePct, 78);
+
+  // Confirming legacy 'exercise' or today's Check-In exercise resolves Day-35 bone/muscle warning.
+  const withoutAred = evaluateBodySystems({ vitals: baseVitals, latestCheckIn: null, completions: [], kpIndex: 2.3 });
+  assert.equal(withoutAred.find(s => s.id === 'musculoskeletal')?.status, 'warning');
+  const withLegacyCompletion = evaluateBodySystems({
+    vitals: baseVitals,
+    latestCheckIn: null,
+    completions: [{ key: 'k', astronautId: 'ASTRO-01', missionId: 'exercise', date: localDate(), completedAt: todayIso }],
+    kpIndex: 2.3,
+  });
+  assert.equal(withLegacyCompletion.find(s => s.id === 'musculoskeletal')?.status, 'nominal');
+  const withCheckInAred = evaluateBodySystems({
+    vitals: baseVitals,
+    latestCheckIn: sample({ astronautId: 'ASTRO-01', createdAt: todayIso, exerciseMinutes: 35 }),
+    completions: [],
+    kpIndex: 2.3,
+  });
+  assert.equal(withCheckInAred.find(s => s.id === 'musculoskeletal')?.status, 'nominal');
+
+  // Streamlined Check-In renders nominal pre-fill & auto-verify preview cleanly.
+  const checkInHtml = renderToStaticMarkup(
+    React.createElement(CheckInPage, {
+      astronautId: 'ASTRO-01',
+      vitals: baseVitals,
+      records: [autoCheckIn],
+      offline: false,
+      gateway: true,
+      onSaved: async () => { },
+    }),
+  );
+  assert.match(checkInHtml, /Pre-fill nominal crew shift/);
+  assert.match(checkInHtml, /Daily fluid intake \(mL\)/);
+  assert.match(checkInHtml, /2200 mL/);
+  assert.match(checkInHtml, /Use live sensor/);
+  assert.match(checkInHtml, /Auto-verifies on save:/);
+
+  // Assistant supports multi-turn history, pre_eva_brief, sbar_downlink, and excludes private notes.
+  const aiContext = buildAssistantContext('ASTRO-01', [autoCheckIn], [], [], undefined, baseVitals, [ocularExam], readiness, 'Metabolic & Nutrition');
+  assert.doesNotMatch(JSON.stringify(aiContext), /SECRET/);
+  const evaReply = await demoAssistant.ask('Generate Pre-EVA Readiness Brief for this shift.', aiContext, {
+    mode: 'pre_eva_brief',
+    history: [{ role: 'user', content: 'How is my blood sugar?' }],
+  });
+  assert.match(evaReply.facts, /Pre-EVA Readiness/i);
+  assert.ok(Array.isArray(evaReply.suggestedActions) && evaReply.suggestedActions.length >= 1);
+
+  const sbarReply = await demoAssistant.ask('Generate Ground Downlink SBAR', aiContext, { mode: 'sbar_downlink' });
+  assert.ok(sbarReply.sbarText);
+  assert.match(sbarReply.sbarText, /S \(Situation\):/);
+  assert.match(sbarReply.sbarText, /B \(Background\):/);
+  assert.match(sbarReply.sbarText, /A \(Assessment\):/);
+  assert.match(sbarReply.sbarText, /R \(Recommendation\):/);
+  assert.doesNotMatch(sbarReply.sbarText, /SECRET/);
+
+  // Web Speech & MediaRecorder helpers degrade gracefully in SSR / headless environments without window.
+  assert.equal(isSpeechRecognitionSupported(), false);
+  assert.equal(isMediaRecorderSupported(), false);
+  assert.equal(isVoiceDictationSupported(), false);
+  assert.equal(isSpeechSynthesisSupported(), false);
+  assert.doesNotThrow(() => primeAudioPlayback());
+  assert.equal(startVoiceDictation({ onFinal: () => { } }), null);
+  assert.equal(speakAssistantReply('Status nominal'), false);
+  assert.doesNotThrow(() => stopSpeaking());
+});
+
+test('UTC sleep timing dropdown helpers handle overnight rollovers, presets, current UTC, and accessible markup without native select', () => {
+  const {
+    UTC_TIME_SLOTS,
+    applyUtcTimeSelection,
+    formatUtcDateTime,
+    utcPresetWindow,
+  } = require('../src/services/sleepTiming.ts');
+  const { SpaceCheckInFields } = require('../src/components/SpaceCheckInFields.tsx');
+
+  assert.equal(UTC_TIME_SLOTS.length, 48);
+  assert.equal(UTC_TIME_SLOTS[0], '00:00');
+  assert.equal(UTC_TIME_SLOTS[47], '23:30');
+
+  // Evening start defaults to Yesterday UTC and overnight wake rolls forward cleanly.
+  const refNow = new Date('2026-11-15T03:55:00Z');
+  assert.equal(formatUtcDateTime(refNow), '2026-11-15T03:55');
+  const start = applyUtcTimeSelection({ role: 'start', timePart: '22:00', currentValue: '', otherValue: '', now: refNow });
+  assert.equal(start, '2026-11-14T22:00');
+  const wake = applyUtcTimeSelection({ role: 'wake', timePart: '06:00', currentValue: '', otherValue: start, now: refNow });
+  assert.equal(wake, '2026-11-15T06:00');
+
+  // Leap-day overnight rollover from 2024-02-29T23:00 -> 2024-03-01T07:00.
+  const leapWake = applyUtcTimeSelection({
+    role: 'wake',
+    timePart: '07:00',
+    currentValue: '',
+    otherValue: '2024-02-29T23:00',
+    now: new Date('2024-03-01T07:30:00Z'),
+  });
+  assert.equal(leapWake, '2024-03-01T07:00');
+
+  // Quick 8h wake-now preset computes exact UTC timestamps.
+  const preset = utcPresetWindow(8, refNow);
+  assert.deepEqual(preset, { sleepStartUtc: '2026-11-14T19:55', wakeUtc: '2026-11-15T03:55' });
+
+  // Custom listbox renders accessible controls with zero native <select> or datetime-local inputs.
+  const sleepUiHtml = renderToStaticMarkup(
+    React.createElement(SpaceCheckInFields, {
+      step: 0,
+      draft: { ...createCheckInDraft(), ...preset },
+      update: () => { },
+      error: '',
+    }),
+  );
+  assert.doesNotMatch(sleepUiHtml, /<select/);
+  assert.doesNotMatch(sleepUiHtml, /datetime-local/);
+  assert.match(sleepUiHtml, /aria-haspopup="listbox"/);
+  assert.match(sleepUiHtml, /Woke now · 8h sleep/);
+  assert.match(sleepUiHtml, /Current time/);
+  assert.match(sleepUiHtml, /Apply 8h to sleep duration/);
+});
+
+test('SelfExamCapture camera preview CSS bounds video inside panel without overflowing controls or grid', () => {
+  const { SelfExamCapture } = require('../src/components/SelfExamCapture.tsx');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.css'), 'utf8');
+  assert.match(css, /\.self-exam-preview\s*\{[\s\S]*overflow:\s*hidden;/);
+  assert.match(css, /\.self-exam-preview video[\s\S]*object-fit:\s*cover;/);
+  assert.match(css, /grid-template-columns:\s*minmax\(0,\s*0\.9fr\)\s*minmax\(0,\s*1\.1fr\);/);
+
+  const html = renderToStaticMarkup(
+    React.createElement(SelfExamCapture, {
+      astronautId: 'ASTRO-01',
+      vitals: {
+        astronaut_id: 'ASTRO-01',
+        timestamp: '2026-11-15T12:00:00Z',
+        heart_rate: 72,
+        spo2: 98,
+        core_temp: 36.8,
+        radiation_rate: 14,
+        hrv: 52,
+      },
+      kpIndex: 2.3,
+      offline: false,
+      examType: 'dermal_radiation',
+      onExamTypeChange: () => { },
+      assessments: [],
+      onAssessmentSaved: () => { },
+    }),
+  );
+  assert.match(html, /Skin &amp; Radiation Erythema/);
+  assert.match(html, /Left forearm cuff check/);
+  assert.doesNotMatch(html, /capture="environment"/);
+  const captureSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'components', 'SelfExamCapture.tsx'), 'utf8');
+  assert.doesNotMatch(captureSrc, /capture="environment"/);
+  assert.match(captureSrc, /function triggerImageUpload\(\)[\s\S]*?stopCamera\(\);[\s\S]*?fileRef\.current\?\.click\(\)/);
+  assert.match(captureSrc, /async function handleFileChange[\s\S]*?stopCamera\(\);/);
+});
+
+test('Web Speech TTS prioritizes low-latency local voices and retries alternate local voice cleanly', async () => {
+  const {
+    splitSpeechChunks,
+    pickSpeechVoice,
+    speakAssistantReply,
+    stopSpeaking,
+    resetVoiceAssistantState,
+  } = require('../src/services/voiceAssistant.ts');
+
+  const longText = [
+    '**Summary**: Metabolic markers stay nominal at **94 mg/dL**.',
+    'Hydration reached 2300 mL today with no acute SANS symptoms.',
+    'Continue ARED resistance blocks and evening circadian dim-light schedule before sleep.',
+    'Escalate to Ground Flight Surgeon immediately if resting heart rate exceeds 115 BPM or dizziness occurs.',
+  ].join(' ');
+  const chunks = splitSpeechChunks(longText, 140);
+  assert.ok(chunks.length >= 2, `Expected multi-chunk split, got ${chunks.length}`);
+  for (const chunk of chunks) {
+    assert.ok(chunk.length <= 140, `Chunk exceeded 140 chars: ${chunk.length}`);
+    assert.doesNotMatch(chunk, /[*_`#]/);
+  }
+
+  const remoteVoice = { name: 'Google US English', lang: 'en-US', localService: false, default: true, voiceURI: 'remote-us' };
+  const localVoice = { name: 'English (America)', lang: 'en-US', localService: true, default: false, voiceURI: 'local-us' };
+  const localVoiceAlt = { name: 'English (UK)', lang: 'en-GB', localService: true, default: false, voiceURI: 'local-gb' };
+  const espeakVoice = { name: 'English (America)+eSpeak', lang: 'en-US', localService: true, default: true, voiceURI: 'espeak-us' };
+  const davidVoice = { name: 'Microsoft David Desktop - English (United States)', lang: 'en-US', localService: true, default: true, voiceURI: 'ms-david' };
+  const ariaNatural = { name: 'Microsoft Aria Online (Natural) - English (United States)', lang: 'en-US', localService: false, default: false, voiceURI: 'ms-aria' };
+
+  assert.equal(pickSpeechVoice([remoteVoice, localVoice])?.voiceURI, 'local-us');
+  assert.equal(pickSpeechVoice([remoteVoice, localVoice], { preferLocal: false })?.voiceURI, 'remote-us');
+  assert.equal(pickSpeechVoice([davidVoice, ariaNatural])?.voiceURI, 'ms-aria');
+  assert.equal(pickSpeechVoice([espeakVoice, remoteVoice])?.voiceURI, 'remote-us');
+  assert.equal(
+    pickSpeechVoice([remoteVoice, localVoice, localVoiceAlt], { preferLocal: true, excludeVoiceUri: 'local-us' })?.voiceURI,
+    'local-gb',
+  );
+
+  const prevWindow = global.window;
+  let cancelCount = 0;
+  const spokenUtterances = [];
+
+  class MockUtterance {
+    constructor(text) {
+      this.text = text;
+      this.lang = '';
+      this.voice = null;
+      this.rate = 1;
+      this.pitch = 1;
+      this.onstart = null;
+      this.onend = null;
+      this.onerror = null;
+    }
+  }
+
+  const mockSynth = {
+    speaking: false,
+    pending: false,
+    paused: false,
+    getVoices: () => [remoteVoice, localVoice, localVoiceAlt],
+    cancel() {
+      cancelCount++;
+      this.speaking = false;
+      this.pending = false;
+    },
+    resume() {
+      this.paused = false;
+    },
+    speak(utterance) {
+      spokenUtterances.push(utterance);
+      this.speaking = true;
+    },
+  };
+
+  resetVoiceAssistantState();
+  global.window = {
+    speechSynthesis: mockSynth,
+    SpeechSynthesisUtterance: MockUtterance,
+  };
+
+  try {
+    let startCount = 0;
+    let endCount = 0;
+    const errors = [];
+
+    // Idle call should NOT trigger cancel() before speak() and picks localService voice immediately.
+    const started = speakAssistantReply(longText, {
+      onStart: () => startCount++,
+      onEnd: () => endCount++,
+      onError: msg => errors.push(msg),
+    });
+    assert.equal(started, true);
+    assert.equal(cancelCount, 0);
+    assert.equal(spokenUtterances.length, 1);
+    assert.equal(spokenUtterances[0].voice.voiceURI, 'local-us');
+
+    const defaultChunks = splitSpeechChunks(longText);
+    assert.ok(defaultChunks.length >= 2);
+    for (let i = 0; i < defaultChunks.length; i++) {
+      const current = spokenUtterances[i];
+      current.onstart?.();
+      mockSynth.speaking = false;
+      current.onend?.();
+    }
+    assert.equal(startCount, 1);
+    assert.equal(endCount, 1);
+    assert.equal(errors.length, 0);
+
+    // Local voice failure automatically retries once on alternate localService voice after cancel settles.
+    spokenUtterances.length = 0;
+    let fallbackEnds = 0;
+    let fallbackStarts = 0;
+    const fallbackErrors = [];
+    speakAssistantReply('Short hydration reminder. Check water log.', {
+      onStart: () => fallbackStarts++,
+      onEnd: () => fallbackEnds++,
+      onError: msg => fallbackErrors.push(msg),
+    });
+    assert.equal(spokenUtterances.length, 1);
+    assert.equal(spokenUtterances[0].voice.voiceURI, 'local-us');
+    spokenUtterances[0].onerror?.({ error: 'synthesis-failed' });
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+    assert.equal(spokenUtterances.length, 2, 'Expected automatic retry on alternate local voice');
+    assert.equal(spokenUtterances[1].voice.voiceURI, 'local-gb');
+    spokenUtterances[1].onstart?.();
+    spokenUtterances[1].onend?.();
+    assert.equal(fallbackStarts, 1);
+    assert.equal(fallbackEnds, 1);
+    assert.equal(fallbackErrors.length, 0);
+
+    stopSpeaking();
+  } finally {
+    resetVoiceAssistantState();
+    global.window = prevWindow;
+  }
+});
+
+test('Web Speech TTS falls back without repeat delay when voices probe settled and reuses primed audio element', async () => {
+  const {
+    preloadSpeechVoices,
+    primeAudioPlayback,
+    speakAssistantReply,
+    resetVoiceAssistantState,
+  } = require('../src/services/voiceAssistant.ts');
+
+  const prevWindow = global.window;
+  const prevCreateUrl = URL.createObjectURL;
+  const prevRevokeUrl = URL.revokeObjectURL;
+
+  const createdAudio = [];
+  let fetchCalls = 0;
+  let revokedCount = 0;
+
+  class MockAudio {
+    constructor(src = '') {
+      this.src = src;
+      this.muted = false;
+      this.preload = '';
+      this.onplay = null;
+      this.onended = null;
+      this.onerror = null;
+      this.paused = true;
+      createdAudio.push(this);
+    }
+    async play() {
+      this.paused = false;
+      this.onplay?.();
+    }
+    pause() {
+      this.paused = true;
+    }
+  }
+
+  class MockUtterance {
+    constructor(text) {
+      this.text = text;
+    }
+  }
+
+  URL.createObjectURL = () => 'blob:mock-wav-1';
+  URL.revokeObjectURL = () => {
+    revokedCount++;
+  };
+
+  resetVoiceAssistantState();
+  global.window = {
+    Audio: MockAudio,
+    SpeechSynthesisUtterance: MockUtterance,
+    speechSynthesis: {
+      speaking: false,
+      pending: false,
+      paused: false,
+      getVoices: () => [],
+      cancel() { },
+      resume() { },
+      speak() {
+        throw new Error('Should not speak via Web Speech when zero voices exist');
+      },
+    },
+  };
+
+  try {
+    preloadSpeechVoices();
+    primeAudioPlayback();
+    await new Promise(resolve => setTimeout(resolve, 10));
+    assert.equal(createdAudio.length, 1, 'Expected one persistent primed audio element');
+
+    let starts = 0;
+    let ends = 0;
+    const errors = [];
+    const text = 'Astronaut telemetry nominal across all systems.';
+    const started = speakAssistantReply(text, {
+      onStart: () => starts++,
+      onEnd: () => ends++,
+      onError: msg => errors.push(msg),
+      fetchAudio: async () => {
+        fetchCalls++;
+        return new Blob(['RIFF'], { type: 'audio/wav' });
+      },
+    });
+    assert.equal(started, true);
+    await new Promise(resolve => setTimeout(resolve, 30));
+    assert.equal(fetchCalls, 1);
+    assert.equal(createdAudio.length, 1, 'Expected Tier 2 playback to reuse primed HTMLAudioElement for Safari/mobile');
+    assert.equal(createdAudio[0].src, 'blob:mock-wav-1');
+    assert.equal(starts, 1);
+    assert.equal(errors.length, 0);
+
+    createdAudio[0].onended?.();
+    assert.equal(ends, 1);
+    assert.ok(revokedCount >= 1);
+
+    // Repeat play reuses cached Blob with 0 additional fetches and still reuses primedAudio.
+    speakAssistantReply(text, {
+      onStart: () => starts++,
+      onEnd: () => ends++,
+      onError: msg => errors.push(msg),
+      fetchAudio: async () => {
+        fetchCalls++;
+        return new Blob(['RIFF'], { type: 'audio/wav' });
+      },
+    });
+    await new Promise(resolve => setTimeout(resolve, 30));
+    assert.equal(fetchCalls, 1, 'Expected cached audio Blob reuse without second fetch');
+    assert.equal(createdAudio.length, 1);
+    createdAudio[0].onended?.();
+    assert.equal(ends, 2);
+  } finally {
+    resetVoiceAssistantState();
+    global.window = prevWindow;
+    URL.createObjectURL = prevCreateUrl;
+    URL.revokeObjectURL = prevRevokeUrl;
+  }
+});
+
+test('Voice dictation automatically falls back from Web Speech network error to MediaRecorder STT and supports browsers without SpeechRecognition', async () => {
+  const {
+    isVoiceDictationSupported,
+    pickRecorderMimeType,
+    startVoiceDictation,
+    resetVoiceAssistantState,
+  } = require('../src/services/voiceAssistant.ts');
+
+  const prevWindow = global.window;
+  const prevNavigatorDesc = Object.getOwnPropertyDescriptor(global, 'navigator');
+
+  let trackStops = 0;
+  let speechStartCount = 0;
+  let recorderInstances = 0;
+  let lastRecorder = null;
+  let abortedSpeech = false;
+
+  class MockSpeechRecognition {
+    constructor() {
+      this.lang = '';
+      this.continuous = false;
+      this.interimResults = false;
+      this.onresult = null;
+      this.onerror = null;
+      this.onend = null;
+    }
+    start() {
+      speechStartCount++;
+      setTimeout(() => {
+        this.onerror?.({ error: 'network' });
+        this.onend?.();
+      }, 5);
+    }
+    stop() { }
+    abort() {
+      abortedSpeech = true;
+    }
+  }
+
+  class MockMediaRecorder {
+    static isTypeSupported(mime) {
+      return mime === 'audio/mp4';
+    }
+    constructor(stream, opts = {}) {
+      recorderInstances++;
+      this.stream = stream;
+      this.mimeType = opts.mimeType || 'audio/mp4';
+      this.state = 'inactive';
+      this.ondataavailable = null;
+      this.onerror = null;
+      this.onstop = null;
+      lastRecorder = this;
+    }
+    start() {
+      this.state = 'recording';
+    }
+    stop() {
+      this.state = 'inactive';
+      this.ondataavailable?.({ data: new Blob(['mock-audio-data'], { type: this.mimeType }) });
+      this.onstop?.();
+    }
+  }
+
+  assert.equal(pickRecorderMimeType(mime => mime === 'audio/webm;codecs=opus'), 'audio/webm;codecs=opus');
+  assert.equal(pickRecorderMimeType(mime => mime === 'audio/mp4'), 'audio/mp4');
+
+  resetVoiceAssistantState();
+  Object.defineProperty(global, 'navigator', {
+    configurable: true,
+    writable: true,
+    value: {
+      onLine: true,
+      mediaDevices: {
+        async getUserMedia() {
+          return {
+            getTracks: () => [
+              {
+                stop() {
+                  trackStops++;
+                },
+              },
+            ],
+          };
+        },
+      },
+    },
+  });
+  global.window = {
+    SpeechRecognition: MockSpeechRecognition,
+    MediaRecorder: MockMediaRecorder,
+  };
+
+  try {
+    assert.equal(isVoiceDictationSupported(), true);
+
+    const finals = [];
+    const errors = [];
+    const processingStates = [];
+    let endCount = 0;
+    let sentMime = '';
+    let sentB64 = '';
+
+    const handle1 = startVoiceDictation({
+      onFinal: text => finals.push(text),
+      onError: err => errors.push(err),
+      onProcessing: busy => processingStates.push(busy),
+      onEnd: () => endCount++,
+      transcribeAudio: async (b64, mime) => {
+        sentB64 = b64;
+        sentMime = mime;
+        return 'Check my blood sugar trend';
+      },
+    });
+    assert.ok(handle1);
+
+    // Wait for async SpeechRecognition 'network' error -> automatic MediaRecorder startup.
+    await new Promise(resolve => setTimeout(resolve, 40));
+    assert.equal(speechStartCount, 1);
+    assert.equal(abortedSpeech, true);
+    assert.equal(recorderInstances, 1);
+    assert.equal(errors.length, 0, 'Network error should trigger seamless MediaRecorder fallback without surfacing error');
+
+    handle1.stop();
+    await new Promise(resolve => setTimeout(resolve, 40));
+
+    assert.equal(trackStops, 1, 'Expected microphone track to stop cleanly after recording');
+    assert.equal(sentMime, 'audio/mp4');
+    assert.equal(Buffer.from(sentB64, 'base64').toString('utf8'), 'mock-audio-data');
+    assert.deepEqual(processingStates, [true, false]);
+    assert.deepEqual(finals, ['Check my blood sugar trend']);
+    assert.equal(endCount, 1);
+
+    // Next click in same session (or Firefox with no SpeechRecognition) skips blocked SpeechRecognition directly.
+    delete global.window.SpeechRecognition;
+    const handle2 = startVoiceDictation({
+      onFinal: text => finals.push(text),
+      onError: err => errors.push(err),
+      transcribeAudio: async () => 'Pre-EVA readiness check',
+    });
+    assert.ok(handle2);
+    await new Promise(resolve => setTimeout(resolve, 30));
+    assert.equal(speechStartCount, 1, 'Should not invoke Web Speech again once skipped/unsupported');
+    assert.equal(recorderInstances, 2);
+    assert.equal(lastRecorder?.mimeType, 'audio/mp4');
+    handle2.stop();
+    await new Promise(resolve => setTimeout(resolve, 40));
+    assert.equal(trackStops, 2);
+    assert.deepEqual(finals, ['Check my blood sugar trend', 'Pre-EVA readiness check']);
+  } finally {
+    resetVoiceAssistantState();
+    global.window = prevWindow;
+    if (prevNavigatorDesc) {
+      Object.defineProperty(global, 'navigator', prevNavigatorDesc);
+    } else {
+      delete global.navigator;
+    }
+  }
+});
+
+test('Voice dictation automatically ends after 3-second delay without voice input and AIPage auto-prompts model', async () => {
+  const {
+    VOICE_SILENCE_DELAY_MS,
+    startVoiceDictation,
+    resetVoiceAssistantState,
+  } = require('../src/services/voiceAssistant.ts');
+
+  assert.equal(VOICE_SILENCE_DELAY_MS, 3000);
+
+  const prevWindow = global.window;
+  const prevNavigatorDesc = Object.getOwnPropertyDescriptor(global, 'navigator');
+
+  let activeInstance = null;
+  class MockSpeechRecognitionTimed {
+    constructor() {
+      this.lang = '';
+      this.continuous = false;
+      this.interimResults = false;
+      this.onresult = null;
+      this.onerror = null;
+      this.onend = null;
+      this.onaudiostart = null;
+      this.onsoundstart = null;
+      this.onspeechstart = null;
+      this.stopped = false;
+      activeInstance = this;
+    }
+    start() {
+      this.onaudiostart?.();
+    }
+    stop() {
+      this.stopped = true;
+      this.onend?.();
+    }
+    abort() {
+      this.stopped = true;
+    }
+  }
+
+  global.window = {
+    SpeechRecognition: MockSpeechRecognitionTimed,
+  };
+
+  try {
+    resetVoiceAssistantState();
+
+    // Inactivity timeout with no speech: fires onError with no-speech and stops
+    const errors = [];
+    let ended = false;
+    const finals = [];
+    startVoiceDictation({
+      silenceTimeoutMs: 35,
+      onError: err => errors.push(err),
+      onEnd: () => { ended = true; },
+      onFinal: txt => finals.push(txt),
+    });
+
+    await new Promise(resolve => setTimeout(resolve, 55));
+    assert.equal(ended, true);
+    assert.deepEqual(finals, []);
+    assert.equal(errors.length, 1);
+    assert.match(errors[0], /No speech detected/);
+
+    // Speech activity resets silence timer, then auto-ends with onFinal
+    errors.length = 0;
+    ended = false;
+    finals.length = 0;
+    const interims = [];
+
+    startVoiceDictation({
+      silenceTimeoutMs: 40,
+      onError: err => errors.push(err),
+      onEnd: () => { ended = true; },
+      onInterim: txt => interims.push(txt),
+      onFinal: txt => finals.push(txt),
+    });
+
+    // Send speech at 20ms
+    await new Promise(resolve => setTimeout(resolve, 20));
+    activeInstance.onresult?.({
+      resultIndex: 0,
+      results: [{ 0: { transcript: 'What is my current heart rate?' }, isFinal: true, length: 1 }],
+    });
+
+    // At 30ms (10ms after speech), it should still be listening because speech reset the timer
+    assert.equal(ended, false);
+    assert.equal(finals.length, 0);
+
+    // At 75ms (55ms after speech), the 40ms silence timer has expired and auto-ended
+    await new Promise(resolve => setTimeout(resolve, 50));
+    assert.equal(ended, true);
+    assert.deepEqual(finals, ['What is my current heart rate?']);
+    assert.equal(errors.length, 0);
+
+    // Fallback MediaRecorder also auto-stops on silence timeout
+    delete global.window.SpeechRecognition;
+    let recorderStopped = false;
+    const recorderMime = 'audio/mp4';
+    class AutoStopRecorder {
+      static isTypeSupported() { return true; }
+      constructor(stream, opts = {}) {
+        this.stream = stream;
+        this.mimeType = opts.mimeType || 'audio/mp4';
+        this.state = 'inactive';
+        this.ondataavailable = null;
+        this.onstop = null;
+      }
+      start() { this.state = 'recording'; }
+      stop() {
+        this.state = 'inactive';
+        recorderStopped = true;
+        this.ondataavailable?.({ data: new Blob(['audio-bytes'], { type: recorderMime }) });
+        this.onstop?.();
+      }
+    }
+
+    Object.defineProperty(global, 'navigator', {
+      configurable: true,
+      writable: true,
+      value: {
+        onLine: true,
+        mediaDevices: {
+          async getUserMedia() {
+            return { getTracks: () => [{ stop() { } }] };
+          },
+        },
+      },
+    });
+    global.window = { MediaRecorder: AutoStopRecorder };
+
+    const recorderFinals = [];
+    startVoiceDictation({
+      silenceTimeoutMs: 40,
+      onFinal: txt => recorderFinals.push(txt),
+      transcribeAudio: async () => 'Telemetry status nominal',
+    });
+
+    await new Promise(resolve => setTimeout(resolve, 65));
+    assert.equal(recorderStopped, true, 'Recorder should auto-stop after silence timeout without manual stop() call');
+    assert.deepEqual(recorderFinals, ['Telemetry status nominal']);
+
+    // Verify AIPage contains auto-prompt send logic and audio priming
+    const aiPageSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'AIPage.tsx'), 'utf8');
+    assert.match(aiPageSource, /void\s+send\(fullPrompt,\s*'chat'\)/);
+    assert.match(aiPageSource, /primeAudioPlayback\(\)/);
+  } finally {
+    resetVoiceAssistantState();
+    global.window = prevWindow;
+    if (prevNavigatorDesc) {
+      Object.defineProperty(global, 'navigator', prevNavigatorDesc);
+    } else {
+      delete global.navigator;
+    }
+  }
+});
+
+test('Web Speech TTS skips robotic-only eSpeak voices in favor of Tier 2 neural audio when online', async () => {
+  const {
+    speakAssistantReply,
+    resetVoiceAssistantState,
+  } = require('../src/services/voiceAssistant.ts');
+
+  const prevWindow = global.window;
+  const prevCreateUrl = URL.createObjectURL;
+  const prevRevokeUrl = URL.revokeObjectURL;
+
+  let webSpeechCalls = 0;
+  let serverAudioCalls = 0;
+  const createdAudio = [];
+
+  class MockAudio {
+    constructor(src = '') {
+      this.src = src;
+      this.muted = false;
+      this.preload = '';
+      this.onplay = null;
+      this.onended = null;
+      this.onerror = null;
+      this.paused = true;
+      createdAudio.push(this);
+    }
+    async play() {
+      this.paused = false;
+      this.onplay?.();
+    }
+    pause() {
+      this.paused = true;
+    }
+  }
+
+  class MockUtterance {
+    constructor(text) {
+      this.text = text;
+    }
+  }
+
+  URL.createObjectURL = () => 'blob:edge-mp3-1';
+  URL.revokeObjectURL = () => { };
+
+  const roboticOnly = {
+    name: 'English (America)+eSpeak',
+    lang: 'en-US',
+    localService: true,
+    default: true,
+    voiceURI: 'espeak-us',
+  };
+
+  resetVoiceAssistantState();
+  global.window = {
+    Audio: MockAudio,
+    SpeechSynthesisUtterance: MockUtterance,
+    speechSynthesis: {
+      speaking: false,
+      pending: false,
+      paused: false,
+      getVoices: () => [roboticOnly],
+      cancel() { },
+      resume() { },
+      speak() {
+        webSpeechCalls++;
+      },
+    },
+  };
+
+  try {
+    let ends = 0;
+    const started = speakAssistantReply('Edge neural fallback active.', {
+      onEnd: () => ends++,
+      fetchAudio: async () => {
+        serverAudioCalls++;
+        return new Blob(['ID3'], { type: 'audio/mpeg' });
+      },
+    });
+    assert.equal(started, true);
+    await new Promise(resolve => setTimeout(resolve, 30));
+    assert.equal(webSpeechCalls, 0, 'Should bypass robotic eSpeak Tier 1 when online server audio is available');
+    assert.equal(serverAudioCalls, 1);
+    assert.equal(createdAudio.length, 1);
+    createdAudio[0].onended?.();
+    assert.equal(ends, 1);
+
+    // If a primed Audio element enters error state, fallback discards it and creates a fresh Audio instance,
+    // and request timeouts surface an explicit error instead of leaving UI stuck.
+    const { primeAudioPlayback } = require('../src/services/voiceAssistant.ts');
+    resetVoiceAssistantState();
+    createdAudio.length = 0;
+    primeAudioPlayback();
+    assert.equal(createdAudio.length, 1);
+    createdAudio[0].error = { code: 4 };
+
+    speakAssistantReply('Fresh element after primed error.', {
+      onEnd: () => ends++,
+      fetchAudio: async () => new Blob(['ID3'], { type: 'audio/mpeg' }),
+    });
+    await new Promise(resolve => setTimeout(resolve, 30));
+    assert.equal(createdAudio.length, 2, 'Should bypass errored primedAudio with fresh Audio instance');
+    createdAudio[1].onended?.();
+    assert.equal(ends, 2);
+
+    const timeoutErrors = [];
+    speakAssistantReply('Timeout should notify error callback.', {
+      onError: msg => timeoutErrors.push(msg),
+      fetchAudio: async () => {
+        throw new Error('Request timed out before audio synthesis completed.');
+      },
+    });
+    await new Promise(resolve => setTimeout(resolve, 30));
+    assert.equal(timeoutErrors.length, 1);
+    assert.match(timeoutErrors[0], /timed out/i);
+  } finally {
+    resetVoiceAssistantState();
+    global.window = prevWindow;
+    URL.createObjectURL = prevCreateUrl;
+    URL.revokeObjectURL = prevRevokeUrl;
+  }
+});
+
+test('SelfExamCapture keeps the 3 clinical domains and formats observation speech for Edge TTS readout', () => {
+  const { SELF_EXAM_GUIDES, buildObservationSpeechText } = require('../src/services/selfExams.ts');
+  const { SelfExamCapture } = require('../src/components/SelfExamCapture.tsx');
+
+  assert.deepEqual(Object.keys(SELF_EXAM_GUIDES), [
+    'ocular_ultrasound',
+    'dermal_radiation',
+    'glucometer_nutrition',
+  ]);
+
+  const examHtml = renderToStaticMarkup(React.createElement(SelfExamCapture, {
+    astronautId: 'ASTRO-01',
+    vitals: {
+      astronaut_id: 'ASTRO-01',
+      timestamp: '2026-11-15T08:00:00Z',
+      heart_rate: 72,
+      spo2: 98.5,
+      core_temp: 36.8,
+      radiation_rate: 15.0,
+      hrv: 52,
+      blood_glucose: 94,
+      hydration_pct: 94,
+      wbc_k_ul: 6.1,
+      mission_day: 24,
+    },
+    kpIndex: 2.2,
+    offline: false,
+    examType: 'dermal_radiation',
+    onExamTypeChange: () => { },
+    assessments: [],
+    onAssessmentSaved: () => { },
+  }));
+  assert.doesNotMatch(examHtml, /All 3 Domains \(Combined\)/);
+  assert.match(examHtml, /Ocular Ultrasound \(SANS\)/);
+  assert.match(examHtml, /Skin &amp; Radiation Erythema/);
+  assert.match(examHtml, /Glucometer &amp; Intake Check/);
+
+  const captureSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'components', 'SelfExamCapture.tsx'), 'utf8');
+  assert.match(captureSrc, /preferServerAudio:\s*true/);
+  assert.match(captureSrc, /Auto-read/);
+  assert.match(captureSrc, /Read Aloud/);
+  assert.match(captureSrc, /Synthesizing\.\.\./);
+  assert.match(captureSrc, /primeAudioPlayback\(\)/);
+
+  const todayIso = new Date().toISOString();
+  const speechText = buildObservationSpeechText({
+    id: 'dermal-1',
+    astronautId: 'ASTRO-01',
+    examType: 'dermal_radiation',
+    recordedAt: todayIso,
+    severity: 'warning',
+    findings: 'Mild post-EVA forearm erythema.',
+    recommendedActions: ['Rinse with sterile saline', 'Recheck border in 12 hours'],
+    groundConsultRequired: true,
+    analysisSource: 'gemini-vision',
+  });
+  assert.match(speechText, /Skin & Radiation Erythema assessment: warning/);
+  assert.match(speechText, /Rinse with sterile saline/);
+  assert.match(speechText, /Ground Flight Surgeon review is recommended/);
+});
+
+test('speakAssistantReply preferServerAudio prioritizes Edge TTS over local OS voices and falls back cleanly', async () => {
+  const { speakAssistantReply, resetVoiceAssistantState } = require('../src/services/voiceAssistant.ts');
+  const prevWindow = global.window;
+  const prevCreateUrl = URL.createObjectURL;
+  const prevRevokeUrl = URL.revokeObjectURL;
+
+  let serverCalls = 0;
+  let webSpeechCalls = 0;
+  const createdAudio = [];
+  class MockAudio {
+    constructor(src) {
+      this.src = src || '';
+      this.muted = false;
+      this.error = null;
+      this.onplay = null;
+      this.onended = null;
+      this.onerror = null;
+      createdAudio.push(this);
+    }
+    pause() { }
+    removeAttribute() { }
+    load() { }
+    play() {
+      this.onplay?.();
+      return Promise.resolve();
+    }
+  }
+  class MockUtterance {
+    constructor(text) {
+      this.text = text;
+    }
+  }
+  const naturalVoice = {
+    name: 'Samantha',
+    lang: 'en-US',
+    localService: true,
+    default: true,
+    voiceURI: 'com.apple.voice.Samantha',
+  };
+
+  URL.createObjectURL = () => 'blob:mock-edge-mp3';
+  URL.revokeObjectURL = () => { };
+  resetVoiceAssistantState();
+  global.window = {
+    Audio: MockAudio,
+    SpeechSynthesisUtterance: MockUtterance,
+    speechSynthesis: {
+      speaking: false,
+      pending: false,
+      paused: false,
+      getVoices: () => [naturalVoice],
+      cancel() { },
+      resume() { },
+      speak(utt) {
+        webSpeechCalls++;
+        utt.onstart?.();
+        utt.onend?.();
+      },
+    },
+  };
+
+  try {
+    let ends = 0;
+    const ok = speakAssistantReply('Observation findings look nominal across all domains.', {
+      preferServerAudio: true,
+      onEnd: () => ends++,
+      fetchAudio: async () => {
+        serverCalls++;
+        return new Blob(['ID3'], { type: 'audio/mpeg' });
+      },
+    });
+    assert.equal(ok, true);
+    await new Promise(resolve => setTimeout(resolve, 30));
+    assert.equal(serverCalls, 1, 'Expected preferServerAudio to request Edge TTS immediately');
+    assert.equal(webSpeechCalls, 0, 'Expected natural OS voice not to preempt preferServerAudio');
+    createdAudio[0].onended?.();
+    assert.equal(ends, 1);
+
+    // Server TTS failure should fall back to Tier 1 local OS voice when available.
+    resetVoiceAssistantState();
+    speakAssistantReply('Uncached observation text for fallback test.', {
+      preferServerAudio: true,
+      onEnd: () => ends++,
+      fetchAudio: async () => {
+        serverCalls++;
+        throw new Error('Upstream TTS temporarily unreachable');
+      },
+    });
+    await new Promise(resolve => setTimeout(resolve, 30));
+    assert.equal(serverCalls, 2);
+    assert.equal(webSpeechCalls, 1, 'Expected clean Tier 1 local speech fallback after server error');
+    assert.equal(ends, 2);
+  } finally {
+    resetVoiceAssistantState();
+    global.window = prevWindow;
+    URL.createObjectURL = prevCreateUrl;
+    URL.revokeObjectURL = prevRevokeUrl;
+  }
+});
+
+test('toRemoteCheckInPayload strips private free-text notes while preserving trend metrics and remoteRowToCheckIn round-trips cleanly', () => {
+  const now = new Date('2026-11-15T12:00:00Z');
+  const record = sample({
+    id: 'db-checkin-ASTRO-01-01',
+    astronautId: 'ASTRO-01',
+    createdAt: now.toISOString(),
+    symptoms: 'SECRET SYMPTOMS',
+    notes: 'SECRET REFLECTION',
+    biometrics: {
+      astronaut_id: 'ASTRO-01',
+      timestamp: now.toISOString(),
+      heart_rate: 64,
+      spo2: 98.5,
+      core_temp: 36.8,
+      radiation_rate: 15.2,
+      hrv: 52,
+      telemetry_source: 'simulated',
+      overall_health_score: 91.2,
+      health_status: 'NOMINAL',
+    },
+    metabolic: {
+      bloodGlucoseMgDl: 94,
+      hydrationMl: 2450,
+      nutritionQuality: 'optimal',
+      immuneSymptoms: [],
+    },
+    spaceWellness: {
+      version: 1,
+      mode: 'local-demo',
+      pain: { intensity: 2, location: 'SECRET LOCATION', notes: 'SECRET PAIN NOTE' },
+      mental: { isolation: 2, socialConnection: 4, emotionalWellbeing: 4 },
+      sleep: sleepTiming('2026-11-14T22:00', '2026-11-15T05:30'),
+    },
+  });
+
+  const payload = toRemoteCheckInPayload(record);
+  assert.doesNotMatch(JSON.stringify(payload), /SECRET/);
+  assert.equal(payload.client_id, 'db-checkin-ASTRO-01-01');
+  assert.equal(payload.pain_level, 2);
+  assert.equal(payload.blood_glucose_mg_dl, 94);
+  assert.equal(payload.hydration_ml, 2450);
+
+  const roundTripped = remoteRowToCheckIn({
+    id: 'pg-uuid-1',
+    client_id: String(payload.client_id),
+    astronaut_id: String(payload.astronaut_id),
+    recorded_at: String(payload.recorded_at),
+    mood: Number(payload.mood),
+    energy: Number(payload.energy),
+    stress: Number(payload.stress),
+    sleep_hours: Number(payload.sleep_hours),
+    pain_level: Number(payload.pain_level),
+    blood_glucose_mg_dl: Number(payload.blood_glucose_mg_dl),
+    hydration_ml: Number(payload.hydration_ml),
+    nutrition_quality: String(payload.nutrition_quality),
+    immune_symptoms: [],
+    metrics: payload.metrics,
+  });
+
+  assert.equal(validateCheckIn(roundTripped), null);
+  assert.equal(roundTripped.syncStatus, 'synced');
+  assert.equal(roundTripped.metabolic.bloodGlucoseMgDl, 94);
+  assert.equal(roundTripped.metabolic.hydrationMl, 2450);
+  assert.equal(roundTripped.spaceWellness.pain.intensity, 2);
+  assert.equal(roundTripped.spaceWellness.sleep.windowMinutes, 450);
+  assert.equal(roundTripped.biometrics.heart_rate, 64);
+
+  const exam = remoteRowToAssessment({
+    id: 'pg-exam-1',
+    client_id: 'db-exam-ASTRO-01-01',
+    astronaut_id: 'ASTRO-01',
+    exam_type: 'ocular_ultrasound',
+    recorded_at: now.toISOString(),
+    severity: 'nominal',
+    findings: 'Symmetric ONSD 4.2 mm',
+    recommended_actions: ['Continue routine monitoring'],
+    ground_consult_required: false,
+    analysis_source: 'database-baseline',
+  });
+  assert.equal(exam.id, 'db-exam-ASTRO-01-01');
+  assert.equal(exam.examType, 'ocular_ultrasound');
+  assert.equal(exam.findings, 'Symmetric ONSD 4.2 mm');
+});
+
+test('online HTTP browser hydrates check-ins and self-exams from DB and persists new check-ins remotely', async () => {
+  const { listImageAssessments } = require('../src/services/selfExams.ts');
+  const prevWindow = globalThis.window;
+  const prevFetch = globalThis.fetch;
+  const prevNav = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  const postedPayloads = [];
+
+  try {
+    globalThis.window = { location: { origin: 'http://localhost:5173' } };
+    Object.defineProperty(globalThis, 'navigator', { value: { onLine: true }, configurable: true });
+    globalThis.fetch = async (url, init) => {
+      const target = String(url);
+      if (init?.method === 'POST' && target.includes('/wellness/checkins')) {
+        postedPayloads.push(JSON.parse(String(init.body)));
+        return { ok: true, json: async () => ({ persisted: true, client_id: 'user-db-checkin-1' }) };
+      }
+      if (target.includes('/wellness/checkins/ASTRO-01')) {
+        return {
+          ok: true,
+          json: async () => ({
+            records: [
+              {
+                client_id: 'db-checkin-ASTRO-01-01',
+                astronaut_id: 'ASTRO-01',
+                recorded_at: '2026-11-15T10:00:00Z',
+                mood: 4,
+                energy: 4,
+                stress: 2,
+                sleep_hours: 7.4,
+                blood_glucose_mg_dl: 91,
+                hydration_ml: 2400,
+                nutrition_quality: 'optimal',
+                immune_symptoms: [],
+                metrics: { sleepQuality: 4, fatigue: 2, moodLabel: 'Good', exerciseMinutes: 45 },
+              },
+            ],
+          }),
+        };
+      }
+      if (target.includes('/wellness/assessments/ASTRO-01')) {
+        return {
+          ok: true,
+          json: async () => ({
+            records: [
+              {
+                client_id: 'db-exam-ASTRO-01-01',
+                astronaut_id: 'ASTRO-01',
+                exam_type: 'dermal_radiation',
+                recorded_at: '2026-11-14T08:00:00Z',
+                severity: 'nominal',
+                findings: 'Clear forearm skin post-EVA',
+                recommended_actions: ['Routine hydration'],
+                ground_consult_required: false,
+                analysis_source: 'database-baseline',
+              },
+            ],
+          }),
+        };
+      }
+      throw new Error(`Unexpected fetch URL: ${target}`);
+    };
+
+    const hydrated = await checkins.list('ASTRO-01');
+    assert.equal(hydrated.length, 1);
+    assert.equal(hydrated[0].id, 'db-checkin-ASTRO-01-01');
+    assert.equal(hydrated[0].syncStatus, 'synced');
+
+    const hydratedExams = await listImageAssessments('ASTRO-01');
+    assert.equal(hydratedExams.length, 1);
+    assert.equal(hydratedExams[0].id, 'db-exam-ASTRO-01-01');
+    assert.equal(hydratedExams[0].examType, 'dermal_radiation');
+
+    await checkins.save(sample({ id: 'user-db-checkin-1', astronautId: 'ASTRO-01', notes: 'LOCAL ONLY NOTE' }));
+    assert.equal(postedPayloads.length, 1);
+    assert.equal(postedPayloads[0].client_id, 'user-db-checkin-1');
+    assert.doesNotMatch(JSON.stringify(postedPayloads[0]), /LOCAL ONLY NOTE/);
+    const localAfterSave = await db.checkins.get('user-db-checkin-1');
+    assert.equal(localAfterSave.syncStatus, 'synced');
+  } finally {
+    globalThis.window = prevWindow;
+    globalThis.fetch = prevFetch;
+    if (prevNav) Object.defineProperty(globalThis, 'navigator', prevNav);
+  }
+});
+
+test('seedSimulatedHistory builds 24 chronological points and AnalyticsPage renders DB trends without demo buttons', () => {
+  const now = new Date();
+  const simConfig = defaultSimulationConfig();
+  const history = seedSimulatedHistory('ASTRO-01', 'NONE', simConfig, 24, 90, now.getTime());
+  assert.equal(history.length, 24);
+  for (let i = 1; i < history.length; i++) {
+    assert.ok(history[i].timestamp > history[i - 1].timestamp);
+  }
+  const uniqueHr = new Set(history.map(h => h.heart_rate));
+  assert.ok(uniqueHr.size >= 3, 'Expected simulated telemetry history to show orbital wave variation');
+
+  const dbCheckins = [0, 1, 2, 3, 4].map(dayOffset => remoteRowToCheckIn({
+    client_id: `db-checkin-ASTRO-01-0${dayOffset + 1}`,
+    astronaut_id: 'ASTRO-01',
+    recorded_at: new Date(now.getTime() - dayOffset * 24 * 3600_000).toISOString(),
+    mood: 4,
+    energy: 4,
+    stress: 2,
+    sleep_hours: 7.2,
+    pain_level: 0,
+    blood_glucose_mg_dl: 92 + dayOffset,
+    hydration_ml: 2400,
+    nutrition_quality: 'optimal',
+    immune_symptoms: [],
+    metrics: {
+      sleepQuality: 4,
+      fatigue: 2,
+      moodLabel: 'Good',
+      exerciseMinutes: 45,
+      biometrics: {
+        astronaut_id: 'ASTRO-01',
+        timestamp: new Date(now.getTime() - dayOffset * 24 * 3600_000).toISOString(),
+        heart_rate: 62 + dayOffset,
+        spo2: 98.5,
+        core_temp: 36.8,
+        radiation_rate: 15.1,
+        hrv: 52,
+        telemetry_source: 'simulated',
+      },
+    },
+  }));
+  const dbExams = [
+    remoteRowToAssessment({
+      client_id: 'db-exam-ASTRO-01-01',
+      astronaut_id: 'ASTRO-01',
+      exam_type: 'ocular_ultrasound',
+      recorded_at: now.toISOString(),
+      severity: 'nominal',
+      findings: 'Bilateral ONSD 4.2 mm',
+      recommended_actions: ['Continue routine monitoring'],
+      ground_consult_required: false,
+      analysis_source: 'database-baseline',
+    }),
+  ];
+
+  const html = renderToStaticMarkup(React.createElement(AnalyticsPage, {
+    records: dbCheckins,
+    astronaut: { id: 'ASTRO-01', name: 'Cmdr. Elena Vance', role: 'Mission Commander', age: 39, resting_hr: 62 },
+    alerts: [],
+    assessments: dbExams,
+    vitals: history[history.length - 1],
+    telemetryHistory: history,
+    simConfig,
+    kpIndex: 2.3,
+  }));
+
+  assert.doesNotMatch(html, /Populate Demo Data/);
+  assert.doesNotMatch(html, /Clear Demo Data/);
+  assert.match(html, /<svg/);
+  assert.match(html, /Sleep duration/);
+  assert.match(html, /Check-in heart rate/);
+  assert.match(html, /Check-in blood sugar/);
+  assert.match(html, /Saved camera &amp; ultrasound exams/);
+});
+
+test('speakAssistantReply defaults to Edge TTS server audio when preferServerAudio is omitted', async () => {
+  const { speakAssistantReply, resetVoiceAssistantState } = require('../src/services/voiceAssistant.ts');
+  const prevWindow = global.window;
+  const prevCreateUrl = URL.createObjectURL;
+  const prevRevokeUrl = URL.revokeObjectURL;
+
+  let serverCalls = 0;
+  let webSpeechCalls = 0;
+  const createdAudio = [];
+  class MockAudio {
+    constructor(src) {
+      this.src = src || '';
+      this.muted = false;
+      this.error = null;
+      this.onplay = null;
+      this.onended = null;
+      this.onerror = null;
+      createdAudio.push(this);
+    }
+    pause() { }
+    removeAttribute() { }
+    load() { }
+    play() {
+      this.onplay?.();
+      return Promise.resolve();
+    }
+  }
+  class MockUtterance {
+    constructor(text) {
+      this.text = text;
+    }
+  }
+  const naturalVoice = {
+    name: 'Samantha',
+    lang: 'en-US',
+    localService: true,
+    default: true,
+    voiceURI: 'com.apple.voice.Samantha',
+  };
+
+  URL.createObjectURL = () => 'blob:default-edge-mp3';
+  URL.revokeObjectURL = () => { };
+  resetVoiceAssistantState();
+  global.window = {
+    Audio: MockAudio,
+    SpeechSynthesisUtterance: MockUtterance,
+    speechSynthesis: {
+      speaking: false,
+      pending: false,
+      paused: false,
+      getVoices: () => [naturalVoice],
+      cancel() { },
+      resume() { },
+      speak(utt) {
+        webSpeechCalls++;
+        utt.onstart?.();
+        utt.onend?.();
+      },
+    },
+  };
+
+  try {
+    let ends = 0;
+    const ok = speakAssistantReply('Default Edge TTS should run without preferServerAudio flag.', {
+      onEnd: () => ends++,
+      fetchAudio: async () => {
+        serverCalls++;
+        return new Blob(['ID3'], { type: 'audio/mpeg' });
+      },
+    });
+    assert.equal(ok, true);
+    await new Promise(resolve => setTimeout(resolve, 30));
+    assert.equal(serverCalls, 1, 'Expected omitted preferServerAudio to default to Edge TTS server audio');
+    assert.equal(webSpeechCalls, 0);
+    createdAudio[0].onended?.();
+    assert.equal(ends, 1);
+
+    resetVoiceAssistantState();
+    speakAssistantReply('Explicit opt-out still allows local Web Speech first.', {
+      preferServerAudio: false,
+      onEnd: () => ends++,
+      fetchAudio: async () => {
+        serverCalls++;
+        return new Blob(['ID3'], { type: 'audio/mpeg' });
+      },
+    });
+    assert.equal(serverCalls, 1);
+    assert.equal(webSpeechCalls, 1);
+    assert.equal(ends, 2);
+  } finally {
+    resetVoiceAssistantState();
+    global.window = prevWindow;
+    URL.createObjectURL = prevCreateUrl;
+    URL.revokeObjectURL = prevRevokeUrl;
+  }
+});
+
+test('AIPage character-by-character streaming slices sections and speakAssistantReply emits audio progress for TTS sync', async () => {
+  const {
+    AIMessage,
+    computeDisplayCharWeights,
+    charCountForStreamRatio,
+    sliceReplyForStream,
+  } = require('../src/pages/AIPage.tsx');
+  const { speakAssistantReply, resetVoiceAssistantState } = require('../src/services/voiceAssistant.ts');
+
+  const reply = {
+    facts: 'HR 72 BPM. SpO2 98%.',
+    explanation: 'Hydration and rest stay nominal.',
+    action: 'Continue standard check-in tomorrow.',
+    escalateWhen: 'Report resting HR > 115 BPM.',
+    nasaReference: 'NASA OSDR baseline',
+    source: 'gemini',
+    sourceLabel: 'Gemini',
+    suggestedActions: [{ label: 'Open Check-In', targetPage: 'checkin' }],
+    sbarText: 'S: Nominal telemetry',
+  };
+
+  const weights = computeDisplayCharWeights(reply);
+  const total = reply.facts.length + reply.explanation.length + reply.action.length;
+  assert.equal(weights.length, total);
+  assert.equal(charCountForStreamRatio(weights, 0), 0);
+  assert.equal(charCountForStreamRatio(weights, 1), total);
+  const half = charCountForStreamRatio(weights, 0.5);
+  assert.ok(half > 0 && half < total);
+
+  // Punctuation characters add pause weight compared to letters.
+  const dotIdx = reply.facts.indexOf('.');
+  assert.ok((weights[dotIdx] - weights[dotIdx - 1]) > (weights[1] - weights[0]));
+
+  const partial = sliceReplyForStream(reply, 6);
+  assert.equal(partial.facts, 'HR 72 ');
+  assert.equal(partial.showExplanation, false);
+  assert.equal(partial.showAction, false);
+  assert.equal(partial.complete, false);
+  assert.equal(partial.activeSection, 'facts');
+
+  const waitingHtml = renderToStaticMarkup(React.createElement(AIMessage, {
+    message: { id: 'm1', role: 'assistant', reply },
+    streamedChars: 0,
+    waitingForTts: true,
+  }));
+  assert.match(waitingHtml, /Thinking/);
+  assert.doesNotMatch(waitingHtml, /Syncing speech/);
+  assert.doesNotMatch(waitingHtml, /Ground Downlink SBAR/);
+
+  const partialHtml = renderToStaticMarkup(React.createElement(AIMessage, {
+    message: { id: 'm1', role: 'assistant', reply },
+    streamedChars: reply.facts.length + 5,
+    waitingForTts: false,
+  }));
+  assert.match(partialHtml, /HR 72 BPM\. SpO2 98%\./);
+  assert.match(partialHtml, /Hydra/);
+  assert.doesNotMatch(partialHtml, /Open Check-In/);
+
+  const doneHtml = renderToStaticMarkup(React.createElement(AIMessage, {
+    message: { id: 'm1', role: 'assistant', reply },
+    streamedChars: total,
+    waitingForTts: false,
+  }));
+  assert.match(doneHtml, /Continue standard check-in tomorrow\./);
+  assert.match(doneHtml, /Ground Downlink SBAR/);
+  assert.match(doneHtml, /Open Check-In/);
+  assert.doesNotMatch(doneHtml, /typing-cursor/);
+
+  const prevWindow = global.window;
+  const prevCreateUrl = URL.createObjectURL;
+  const prevRevokeUrl = URL.revokeObjectURL;
+  const progressEvents = [];
+  let audioInst = null;
+
+  class MockAudio {
+    constructor(src) {
+      this.src = src || '';
+      this.muted = false;
+      this.error = null;
+      this.duration = 4.0;
+      this.currentTime = 0;
+      this.onplay = null;
+      this.ontimeupdate = null;
+      this.onended = null;
+      this.onerror = null;
+      audioInst = this;
+    }
+    pause() { }
+    removeAttribute() { }
+    load() { }
+    play() {
+      this.onplay?.();
+      return Promise.resolve();
+    }
+  }
+
+  URL.createObjectURL = () => 'blob:sync-edge-mp3';
+  URL.revokeObjectURL = () => { };
+  resetVoiceAssistantState();
+  global.window = { Audio: MockAudio };
+
+  try {
+    let startedMeta = null;
+    speakAssistantReply('HR 72 BPM. Continue check-in.', {
+      onStart: meta => { startedMeta = meta; },
+      onProgress: p => progressEvents.push(p),
+      fetchAudio: async () => new Blob(['ID3'], { type: 'audio/mpeg' }),
+    });
+    await new Promise(resolve => setTimeout(resolve, 25));
+    assert.equal(startedMeta?.durationSec, 4.0);
+    audioInst.currentTime = 2.0;
+    audioInst.ontimeupdate?.();
+    assert.ok(progressEvents.some(p => Math.abs(p.ratio - 0.5) < 0.01));
+    audioInst.onended?.();
+    assert.equal(progressEvents[progressEvents.length - 1]?.ratio, 1);
+  } finally {
+    resetVoiceAssistantState();
+    global.window = prevWindow;
+    URL.createObjectURL = prevCreateUrl;
+    URL.revokeObjectURL = prevRevokeUrl;
+  }
+});
+
+test('background alert TTS speaks concise summary and action without adding alert card toggles', async () => {
+  const {
+    speakAssistantReply,
+    speakBackgroundAlert,
+    stopAlertSpeaking,
+    resetVoiceAssistantState,
+  } = require('../src/services/voiceAssistant.ts');
+
+  const hypoxia = {
+    id: 'a-1',
+    astronaut_id: 'ASTRO-01',
+    timestamp: '2026-11-15T10:00:00Z',
+    severity: 'CRITICAL',
+    alert_type: 'HYPOXIA',
+    message: 'Critical blood oxygen saturation drop (87.5%) observed during EVA activity.',
+    recommended_action: 'Switch to secondary O2 supply and halt physical exertion.',
+    acknowledged: false,
+  };
+  const tachycardia = {
+    id: 'a-2',
+    astronaut_id: 'ASTRO-01',
+    timestamp: '2026-11-15T10:00:01Z',
+    severity: 'WARNING',
+    alert_type: 'TACHYCARDIA',
+    message: 'Heart rate exceeded 162 BPM continuously for 45 seconds.',
+    recommended_action: 'Rest in seated position and verify cuff contact.',
+    acknowledged: false,
+  };
+  const dehydration = {
+    id: 'a-3',
+    astronaut_id: 'ASTRO-01',
+    timestamp: '2026-11-15T10:00:02Z',
+    severity: 'INFO',
+    alert_type: 'DEHYDRATION',
+    message: 'Hydration reserve projected low before 18:00 UTC.',
+    recommended_action: 'Consume 300 mL electrolyte drink.',
+    acknowledged: false,
+  };
+
+  const singleSpeech = formatSingleAlertSpeech(hypoxia);
+  assert.match(singleSpeech, /Critical alert: Low blood oxygen\./);
+  assert.match(singleSpeech, /Action: Switch to secondary O2 supply and halt physical exertion\./);
+  assert.doesNotMatch(singleSpeech, /87\.5%/);
+  assert.doesNotMatch(singleSpeech, /observed during EVA activity/);
+
+  const summarySpeech = buildAlertAnnouncementText([dehydration, tachycardia, hypoxia]);
+  assert.ok(summarySpeech.indexOf('Low blood oxygen') < summarySpeech.indexOf('Fast heart rate'));
+  assert.ok(summarySpeech.indexOf('Fast heart rate') < summarySpeech.indexOf('Low hydration / fluid loss'));
+  assert.doesNotMatch(summarySpeech, /Plus \d+ more active alert/);
+  assert.equal(buildAlertAnnouncementText([{ ...hypoxia, acknowledged: true }]), '');
+
+  // Long alert bursts chunk cleanly at alert boundaries so TTS request trimming never drops any alert.
+  const radAlert = {
+    ...tachycardia,
+    id: 'a-4',
+    alert_type: 'RADIATION_SPIKE',
+    severity: 'CRITICAL',
+    message: 'Radiation dosage 118.4 uSv/h.',
+    recommended_action: 'Relocate crew to shielded storm shelter bay immediately and verify dosimeter log.',
+  };
+  const heatAlert = {
+    ...tachycardia,
+    id: 'a-5',
+    alert_type: 'HEAT_STRESS',
+    severity: 'WARNING',
+    message: 'Core temp 38.4 C.',
+    recommended_action: 'Increase liquid cooling garment loop flow rate and suspend strenuous exertion immediately.',
+  };
+  const co2Alert = {
+    ...tachycardia,
+    id: 'a-6',
+    alert_type: 'HYPERCAPNIA',
+    severity: 'WARNING',
+    message: 'Resp rate 26.0/min.',
+    recommended_action: 'Verify primary and backup amine CO2 scrubber beds and slow breathing cadence carefully.',
+  };
+  const orthoAlert = {
+    ...dehydration,
+    id: 'a-7',
+    alert_type: 'ORTHOSTATIC_HYPOTENSION',
+    severity: 'WARNING',
+    message: 'BP 86/58 mmHg.',
+    recommended_action: 'Assume seated or supine posture, hydrate with isotonic solution, and engage LBNP garment.',
+  };
+  const multiAnnouncements = buildAlertAnnouncementsByCrew(
+    [dehydration, tachycardia, hypoxia, radAlert, heatAlert, co2Alert, orthoAlert],
+    { 'ASTRO-01': 'Dr. Sarah Chen' },
+    'ASTRO-01',
+  );
+  const combinedQueueText = multiAnnouncements.map(item => item.text).join(' ');
+  assert.ok(multiAnnouncements.length >= 1);
+  assert.ok(multiAnnouncements.every(item => item.text.length <= 1200));
+  for (const label of [
+    'Low blood oxygen',
+    'Rise in radiation',
+    'Fast heart rate',
+    'High body temperature',
+    'Elevated CO2 / breathing rate',
+    'Low blood pressure / orthostatic',
+    'Low hydration / fluid loss',
+  ]) {
+    assert.ok(combinedQueueText.includes(label), `Missing alert speech for ${label}`);
+  }
+
+  // AlertBanner cards must not render any read-aloud / auto-read button.
+  const bannerHtml = renderToStaticMarkup(React.createElement(AlertBanner, {
+    alerts: [hypoxia],
+    onAcknowledge: () => { },
+    onAcknowledgeAll: () => { },
+  }));
+  assert.match(bannerHtml, /CRITICAL/);
+  assert.doesNotMatch(bannerHtml, /read\s*aloud|auto-read/i);
+
+  // Episode deduplication ignores repeated ticks, catches escalation, and respects cooldown.
+  const tracked = new Map();
+  const warnHypoxia = { ...hypoxia, severity: 'WARNING' };
+  assert.equal(selectNewlyTriggeredAlerts([warnHypoxia], tracked, 1_000).length, 1);
+  assert.equal(selectNewlyTriggeredAlerts([warnHypoxia], tracked, 2_200).length, 0);
+  assert.equal(selectNewlyTriggeredAlerts([hypoxia], tracked, 3_400).length, 1);
+  assert.equal(selectNewlyTriggeredAlerts([{ ...hypoxia, acknowledged: true }], tracked, 4_600).length, 0);
+  // Clears once absent past cooldown and re-triggers cleanly later.
+  assert.equal(selectNewlyTriggeredAlerts([], tracked, 35_000).length, 0);
+  assert.equal(selectNewlyTriggeredAlerts([warnHypoxia], tracked, 36_000).length, 1);
+
+  const prevWindow = global.window;
+  const prevCreateUrl = URL.createObjectURL;
+  const prevRevokeUrl = URL.revokeObjectURL;
+  const listeners = new Map();
+  const audioInstances = [];
+  const fetchedTexts = [];
+  let blockNextPlay = false;
+
+  class MockAlertAudio {
+    constructor(src) {
+      this.src = src || '';
+      this.muted = false;
+      this.duration = 2.5;
+      this.currentTime = 0;
+      this.onplay = null;
+      this.ontimeupdate = null;
+      this.onended = null;
+      this.onerror = null;
+      this.paused = false;
+      audioInstances.push(this);
+    }
+    pause() { this.paused = true; }
+    removeAttribute() { }
+    load() { }
+    play() {
+      if (blockNextPlay) {
+        return Promise.reject(Object.assign(new Error('Autoplay blocked'), { name: 'NotAllowedError' }));
+      }
+      this.onplay?.();
+      return Promise.resolve();
+    }
+  }
+
+  URL.createObjectURL = () => `blob:alert-mp3-${audioInstances.length + 1}`;
+  URL.revokeObjectURL = () => { };
+  resetVoiceAssistantState();
+  global.window = {
+    Audio: MockAlertAudio,
+    addEventListener(type, fn) {
+      if (!listeners.has(type)) listeners.set(type, new Set());
+      listeners.get(type).add(fn);
+    },
+    removeEventListener(type, fn) {
+      listeners.get(type)?.delete(fn);
+    },
+  };
+
+  try {
+    // 1) Alert plays cleanly in background and defers when assistant speech is active.
+    let assistantEnded = false;
+    speakAssistantReply('All metrics nominal.', {
+      fetchAudio: async text => {
+        fetchedTexts.push(`assistant:${text}`);
+        return new Blob(['ID3'], { type: 'audio/mpeg' });
+      },
+      onEnd: () => { assistantEnded = true; },
+    });
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.equal(audioInstances.length, 1);
+
+    let alertStarted = false;
+    speakBackgroundAlert(singleSpeech, {
+      onStart: () => { alertStarted = true; },
+      fetchAudio: async text => {
+        fetchedTexts.push(`alert:${text}`);
+        return new Blob(['ID3'], { type: 'audio/mpeg' });
+      },
+    });
+    await new Promise(resolve => setTimeout(resolve, 20));
+    // Assistant playback was not interrupted and alert stayed deferred.
+    assert.equal(audioInstances[0].paused, false);
+    assert.equal(alertStarted, false);
+    assert.equal(fetchedTexts.filter(t => t.startsWith('alert:')).length, 0);
+
+    // Once assistant audio ends, deferred alert begins speaking immediately via Edge TTS fetcher.
+    audioInstances[0].onended?.();
+    await new Promise(resolve => setTimeout(resolve, 25));
+    assert.equal(assistantEnded, true);
+    assert.equal(alertStarted, true);
+    assert.equal(audioInstances.length, 2);
+    assert.ok(fetchedTexts.some(t => t === `alert:${singleSpeech}`));
+    audioInstances[1].onended?.();
+
+    // 2) Browser autoplay block fails silently and retries cleanly after user click gesture.
+    blockNextPlay = true;
+    let blockedNotified = false;
+    let unblockedStart = false;
+    speakBackgroundAlert('Warning alert: Rise in radiation. Action: Move to shielded bay.', {
+      onBlocked: () => { blockedNotified = true; },
+      onStart: () => { unblockedStart = true; },
+      fetchAudio: async () => new Blob(['ID3'], { type: 'audio/mpeg' }),
+    });
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.equal(blockedNotified, true);
+    assert.equal(unblockedStart, false);
+
+    blockNextPlay = false;
+    for (const handler of [...(listeners.get('click') ?? [])]) handler();
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.equal(unblockedStart, true);
+
+    stopAlertSpeaking();
+  } finally {
+    resetVoiceAssistantState();
+    global.window = prevWindow;
+    URL.createObjectURL = prevCreateUrl;
+    URL.revokeObjectURL = prevRevokeUrl;
+  }
+});
+
+test('multi-crew custom simulation reconciles distinct profile alerts and plays alert voice async across switches', async () => {
+  const {
+    speakBackgroundAlert,
+    stopSpeaking,
+    stopAlertSpeaking,
+    syncActiveAlertSpeechKeys,
+    resetVoiceAssistantState,
+  } = require('../src/services/voiceAssistant.ts');
+
+  // 1) Custom simulation evaluates distinct crew baselines/EVA exposures cleanly across ASTRO-01..03.
+  const customSim = {
+    ...defaultSimulationConfig(),
+    missionZone: 'MARS_TRANSIT',
+    missionDay: 365,
+    solarStorm: 'M_FLARE_CME',
+    shielding: 'NOMINAL',
+    anomaly: 'NONE',
+  };
+  const v1 = simulatedVitals('ASTRO-01', customSim.anomaly, customSim, 5.7, 1_700_000_000_000);
+  const v2 = simulatedVitals('ASTRO-02', customSim.anomaly, customSim, 5.7, 1_700_000_000_000);
+  const a1 = evaluateLocalAlerts(v1, 5.7);
+  const a2 = evaluateLocalAlerts(v2, 5.7);
+  // ASTRO-01 defaults to active EVA while ASTRO-02 stays in cabin, producing higher EVA radiation/HR load.
+  assert.ok(v1.radiation_rate > v2.radiation_rate);
+  assert.ok(a1.length >= 1 && a2.length >= 1);
+
+  // 2) reconcileCrewAlerts preserves peer crew alerts and isolates same-episode acknowledgements vs new episodes.
+  const combined = reconcileCrewAlerts([], [...a1, ...a2], ['ASTRO-01', 'ASTRO-02', 'ASTRO-03']);
+  const ackedFirst = combined.map(item =>
+    item.astronaut_id === 'ASTRO-01' ? { ...item, acknowledged: true } : item,
+  );
+  // Re-evaluating ASTRO-02 keeps ASTRO-01's alert intact, and re-evaluating ASTRO-01 preserves same-episode ack.
+  const afterSecondTick = reconcileCrewAlerts(ackedFirst, [...a1, ...a2], ['ASTRO-01', 'ASTRO-02']);
+  assert.ok(afterSecondTick.some(item => item.astronaut_id === 'ASTRO-01' && item.acknowledged));
+  assert.ok(afterSecondTick.some(item => item.astronaut_id === 'ASTRO-02' && !item.acknowledged));
+  // A fresh server episode ID unacknowledges only the recurring episode.
+  const freshIdEpisode = { ...a1[0], id: 'srv-new-ep-99', acknowledged: false };
+  const afterNewEp = reconcileCrewAlerts(ackedFirst, [freshIdEpisode, ...a2], ['ASTRO-01', 'ASTRO-02']);
+  assert.ok(afterNewEp.some(item => item.id === 'srv-new-ep-99' && !item.acknowledged));
+
+  // 3) buildAlertAnnouncementsByCrew splits per crew member with active profile prioritized and names included.
+  const crewNames = { 'ASTRO-01': 'Dr. Sarah Chen', 'ASTRO-02': 'Marcus Vance' };
+  const hypoxiaSar = {
+    id: 'h-sar',
+    astronaut_id: 'ASTRO-01',
+    timestamp: '2026-11-15T10:00:00Z',
+    severity: 'CRITICAL',
+    alert_type: 'HYPOXIA',
+    message: 'SpO2 low',
+    recommended_action: 'Switch to secondary O2 supply.',
+    acknowledged: false,
+  };
+  const radMarc = {
+    id: 'r-mar',
+    astronaut_id: 'ASTRO-02',
+    timestamp: '2026-11-15T10:00:01Z',
+    severity: 'WARNING',
+    alert_type: 'RADIATION_SPIKE',
+    message: 'Rad elevated',
+    recommended_action: 'Move to shielded bay.',
+    acknowledged: false,
+  };
+  const grouped = buildAlertAnnouncementsByCrew([hypoxiaSar, radMarc], crewNames, 'ASTRO-02');
+  assert.equal(grouped.length, 2);
+  assert.equal(grouped[0].astronautId, 'ASTRO-02');
+  assert.match(grouped[0].text, /Warning alert for Marcus Vance: Rise in radiation\./);
+  assert.equal(grouped[1].astronautId, 'ASTRO-01');
+  assert.match(grouped[1].text, /Critical alert for Dr\. Sarah Chen: Low blood oxygen\./);
+
+  // 4) Async FIFO queue finishes item 1 before item 2, survives stopSpeaking() tab switch, and skips cleared keys only.
+  const prevWindow = global.window;
+  const prevCreateUrl = URL.createObjectURL;
+  const prevRevokeUrl = URL.revokeObjectURL;
+  const audioInstances = [];
+  const startedTags = [];
+  const endedTags = [];
+
+  class AsyncQueueAudio {
+    constructor(src) {
+      this.src = src || '';
+      this.paused = false;
+      this.onplay = null;
+      this.onended = null;
+      this.onerror = null;
+      audioInstances.push(this);
+    }
+    pause() { this.paused = true; }
+    removeAttribute() { }
+    load() { }
+    play() {
+      this.onplay?.();
+      return Promise.resolve();
+    }
+  }
+
+  URL.createObjectURL = () => `blob:async-alert-${audioInstances.length + 1}`;
+  URL.revokeObjectURL = () => { };
+  resetVoiceAssistantState();
+  global.window = { Audio: AsyncQueueAudio };
+
+  try {
+    speakBackgroundAlert(grouped[0].text, {
+      tag: grouped[0].astronautId,
+      alertKeys: grouped[0].alertKeys,
+      onStart: () => startedTags.push(grouped[0].astronautId),
+      onEnd: () => endedTags.push(grouped[0].astronautId),
+      fetchAudio: async () => new Blob(['ID3'], { type: 'audio/mpeg' }),
+    });
+    speakBackgroundAlert(grouped[1].text, {
+      tag: grouped[1].astronautId,
+      alertKeys: grouped[1].alertKeys,
+      onStart: () => startedTags.push(grouped[1].astronautId),
+      onEnd: () => endedTags.push(grouped[1].astronautId),
+      fetchAudio: async () => new Blob(['ID3'], { type: 'audio/mpeg' }),
+    });
+
+    await new Promise(resolve => setTimeout(resolve, 25));
+    // Item 1 (ASTRO-02) starts first while Item 2 (ASTRO-01) waits asynchronously in the queue.
+    assert.deepEqual(startedTags, ['ASTRO-02']);
+    assert.equal(audioInstances.length, 1);
+
+    // Simulating AI tab / profile change calling assistant stopSpeaking() must NOT cut off background alert audio.
+    stopSpeaking();
+    assert.equal(audioInstances[0].paused, false);
+
+    // Finish item 1 -> item 2 starts asynchronously on its own without manual re-trigger.
+    audioInstances[0].onended?.();
+    await new Promise(resolve => setTimeout(resolve, 30));
+    assert.deepEqual(startedTags, ['ASTRO-02', 'ASTRO-01']);
+    assert.equal(audioInstances.length, 2);
+
+    // Enqueue a 3rd alert, then clear ASTRO-01's alert key while letting queued global key remain valid.
+    speakBackgroundAlert('Advisory: Check cabin seal.', {
+      tag: 'ASTRO-03',
+      alertKeys: ['ASTRO-03:DEEP_SPACE_DOSE'],
+      onStart: () => startedTags.push('ASTRO-03'),
+      fetchAudio: async () => new Blob(['ID3'], { type: 'audio/mpeg' }),
+    });
+    syncActiveAlertSpeechKeys(new Set(['ASTRO-03:DEEP_SPACE_DOSE']));
+    await new Promise(resolve => setTimeout(resolve, 30));
+    assert.deepEqual(startedTags, ['ASTRO-02', 'ASTRO-01', 'ASTRO-03']);
+    assert.ok(endedTags.includes('ASTRO-02'));
+
+    stopAlertSpeaking();
+  } finally {
+    resetVoiceAssistantState();
+    global.window = prevWindow;
+    URL.createObjectURL = prevCreateUrl;
+    URL.revokeObjectURL = prevRevokeUrl;
+  }
+});
+
+test('selectAlertsForProfile scopes background alert dictation strictly to the selected crew profile', () => {
+  const {
+    selectAlertsForProfile,
+    selectNewlyTriggeredAlerts,
+    buildAlertAnnouncementsByCrew,
+  } = require('../src/services/alertSpeech.ts');
+
+  const combined = [
+    {
+      id: 'a-1',
+      astronaut_id: 'ASTRO-01',
+      timestamp: '2026-11-15T12:00:00Z',
+      severity: 'CRITICAL',
+      alert_type: 'HYPOXIA',
+      message: 'SpO2 dropped',
+      recommended_action: 'Switch to secondary oxygen supply.',
+      acknowledged: false,
+    },
+    {
+      id: 'a-2',
+      astronaut_id: 'ASTRO-02',
+      timestamp: '2026-11-15T12:00:01Z',
+      severity: 'WARNING',
+      alert_type: 'RADIATION_SPIKE',
+      message: 'Rad elevated',
+      recommended_action: 'Move to storm shelter bay.',
+      acknowledged: false,
+    },
+  ];
+  const crewNames = { 'ASTRO-01': 'Dr. Sarah Chen', 'ASTRO-02': 'Marcus Vance' };
+  const tracked = new Map();
+
+  // Viewing ASTRO-02 dictates only ASTRO-02 and ignores ASTRO-01's alert.
+  const forAstro2 = selectAlertsForProfile(combined, 'ASTRO-02');
+  assert.equal(forAstro2.length, 1);
+  const triggered2 = selectNewlyTriggeredAlerts(forAstro2, tracked, 1000);
+  const announcements2 = buildAlertAnnouncementsByCrew(triggered2, crewNames, 'ASTRO-02');
+  assert.equal(announcements2.length, 1);
+  assert.equal(announcements2[0].astronautId, 'ASTRO-02');
+  assert.doesNotMatch(announcements2[0].text, /Sarah Chen|Low blood oxygen/);
+
+  // Switching later to ASTRO-01 still dictates ASTRO-01 once selected, without including ASTRO-02.
+  const forAstro1 = selectAlertsForProfile(combined, 'ASTRO-01');
+  const triggered1 = selectNewlyTriggeredAlerts(forAstro1, tracked, 2000);
+  const announcements1 = buildAlertAnnouncementsByCrew(triggered1, crewNames, 'ASTRO-01');
+  assert.equal(announcements1.length, 1);
+  assert.equal(announcements1[0].astronautId, 'ASTRO-01');
+  assert.match(announcements1[0].text, /Critical alert for Dr\. Sarah Chen: Low blood oxygen\./);
+});
+
+test('speakAssistantReply recovers onto fresh Edge TTS Audio if primedAudio fails without dropping into OS speech', async () => {
+  const {
+    primeAudioPlayback,
+    speakAssistantReply,
+    resetVoiceAssistantState,
+  } = require('../src/services/voiceAssistant.ts');
+
+  const prevWindow = global.window;
+  const prevCreateUrl = URL.createObjectURL;
+  const prevRevokeUrl = URL.revokeObjectURL;
+
+  const createdAudio = [];
+  let webSpeechCalls = 0;
+
+  class FlakyPrimedAudio {
+    constructor(src = '') {
+      this.src = src;
+      this.muted = false;
+      this.preload = '';
+      this.error = null;
+      this.paused = true;
+      this.onplay = null;
+      this.onended = null;
+      this.onerror = null;
+      this._index = createdAudio.length;
+      createdAudio.push(this);
+    }
+    removeAttribute(attr) {
+      if (attr === 'src') this.src = '';
+    }
+    load() { }
+    pause() {
+      this.paused = true;
+    }
+    play() {
+      // First element simulates Chromium AbortError when replacing silent WAV src during priming reuse.
+      if (this._index === 0 && this.src && !this.src.startsWith('data:audio/wav')) {
+        const abortErr = new Error('The play() request was interrupted by a new load request.');
+        abortErr.name = 'AbortError';
+        return Promise.reject(abortErr);
+      }
+      this.paused = false;
+      this.onplay?.();
+      return Promise.resolve();
+    }
+  }
+
+  class MockUtterance {
+    constructor(text) {
+      this.text = text;
+    }
+  }
+
+  const naturalVoice = {
+    name: 'Samantha',
+    lang: 'en-US',
+    localService: true,
+    default: true,
+    voiceURI: 'com.apple.voice.Samantha',
+  };
+
+  URL.createObjectURL = () => 'blob:edge-retry-mp3';
+  URL.revokeObjectURL = () => { };
+  resetVoiceAssistantState();
+  global.window = {
+    Audio: FlakyPrimedAudio,
+    SpeechSynthesisUtterance: MockUtterance,
+    speechSynthesis: {
+      speaking: false,
+      pending: false,
+      paused: false,
+      getVoices: () => [naturalVoice],
+      cancel() { },
+      resume() { },
+      speak() {
+        webSpeechCalls++;
+      },
+    },
+  };
+
+  try {
+    primeAudioPlayback();
+    let startedCount = 0;
+    let endedCount = 0;
+    speakAssistantReply('Ocular Ultrasound assessment: nominal.', {
+      preferServerAudio: true,
+      onStart: () => startedCount++,
+      onEnd: () => endedCount++,
+      fetchAudio: async () => new Blob(['ID3'], { type: 'audio/mpeg' }),
+    });
+    await new Promise(resolve => setTimeout(resolve, 40));
+    assert.equal(createdAudio.length, 2, 'Expected retry onto a fresh Audio element after primedAudio AbortError');
+    assert.equal(webSpeechCalls, 0, 'Must stay on Edge TTS Audio instead of falling back to local OS speech');
+    assert.equal(startedCount, 1);
+    createdAudio[1].onended?.();
+    assert.equal(endedCount, 1);
+  } finally {
+    resetVoiceAssistantState();
+    global.window = prevWindow;
+    URL.createObjectURL = prevCreateUrl;
+    URL.revokeObjectURL = prevRevokeUrl;
+  }
+});
+
+test('live alert sync reconciles BLE overrides, DONKI Kp, and stale server alerts; simulation config stages edits', () => {
+  // 1) Stale server radiation alert clears when displayed nominal/BLE vitals are normal, while BLE HR triggers TACHYCARDIA.
+  const staleRad = {
+    id: 'srv-rad-65',
+    astronaut_id: 'ASTRO-01',
+    timestamp: '2026-11-15T09:00:00Z',
+    severity: 'CRITICAL',
+    alert_type: 'RADIATION_SPIKE',
+    message: 'Old spike',
+    trigger_metric: 'Rad 65.0 uSv/h',
+    recommended_action: 'Seek storm shelter.',
+    acknowledged: false,
+  };
+  const peerHypoxia = {
+    id: 'srv-peer-2',
+    astronaut_id: 'ASTRO-02',
+    timestamp: '2026-11-15T10:00:00Z',
+    severity: 'WARNING',
+    alert_type: 'HYPOXIA',
+    message: 'Peer alert',
+    trigger_metric: 'SpO2 93.0%',
+    recommended_action: 'Check regulator.',
+    acknowledged: false,
+  };
+  const liveVitalsWithBleHr = {
+    ...simulatedVitals('ASTRO-01', 'NONE', defaultSimulationConfig()),
+    heart_rate: 136,
+    spo2: 98.4,
+    radiation_rate: 14.2,
+    telemetry_source: 'ble_measured',
+  };
+  const synced = syncActiveProfileAlerts([], [staleRad, peerHypoxia], liveVitalsWithBleHr, 2.0);
+  assert.ok(!synced.some(a => a.astronaut_id === 'ASTRO-01' && a.alert_type === 'RADIATION_SPIKE' && !a.acknowledged));
+  assert.ok(synced.some(a => a.astronaut_id === 'ASTRO-01' && a.alert_type === 'TACHYCARDIA' && a.trigger_metric === 'HR 136 BPM' && !a.acknowledged));
+  assert.ok(synced.some(a => a.astronaut_id === 'ASTRO-02' && a.alert_type === 'HYPOXIA' && !a.acknowledged));
+
+  // 2) Ongoing server alert adopts exact live trigger_metric and severity from displayed vitals.
+  const stormVitals = {
+    ...simulatedVitals('ASTRO-01', 'NONE', defaultSimulationConfig()),
+    radiation_rate: 118.4,
+    heart_rate: 72,
+    spo2: 98.2,
+  };
+  const updatedRad = syncActiveProfileAlerts([], [staleRad], stormVitals, 8.3);
+  const radItem = updatedRad.find(a => a.astronaut_id === 'ASTRO-01' && a.alert_type === 'RADIATION_SPIKE');
+  assert.ok(radItem);
+  assert.equal(radItem.trigger_metric, 'Rad 118.4 uSv/h');
+
+  // 3) Simulation config comparison & AnomalyDemoBar staging badge render.
+  const baseCfg = defaultSimulationConfig();
+  assert.equal(isSimulationConfigEqual(baseCfg, { ...baseCfg }), true);
+  assert.equal(isSimulationConfigEqual(baseCfg, { ...baseCfg, solarStorm: 'EXTREME_G5' }), false);
+
+  const sampleVitals = simulatedVitals('ASTRO-01', 'NONE', baseCfg);
+  const simBarHtml = renderToStaticMarkup(React.createElement(AnomalyDemoBar, {
+    currentAnomaly: baseCfg.anomaly,
+    simConfig: baseCfg,
+    vitals: sampleVitals,
+    onTrigger: () => { },
+    onUpdateSimConfig: () => { },
+    onRunDiagnostics: () => { },
+    isDiagnosing: false,
+  }));
+  assert.match(simBarHtml, /Synced with live/i);
+
+  const { SpaceEnvironmentPanel } = require('../src/components/SpaceEnvironment.tsx');
+  const flatEnvHtml = renderToStaticMarkup(React.createElement(SpaceEnvironmentPanel, {
+    vitals: sampleVitals,
+    offline: false,
+    hideScenarioControls: true,
+  }));
+  assert.doesNotMatch(flatEnvHtml, /open-subsection/);
+
+  // 4) Responsive CSS, flattened mobile space-env disclosure, and camera/canvas contracts hold.
+  assert.doesNotMatch(simBarHtml, /^<div class="panel simulation-controls">/);
+  const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.css'), 'utf8');
+  assert.match(css, /\.segmented\s*\{[^}]*flex-wrap:\s*wrap/s);
+  assert.match(css, /\.segmented\s*\{[^}]*max-width:\s*100%/s);
+  assert.match(css, /@media\(max-width:\s*639px\)[\s\S]*\.pill\s*\{[^}]*white-space:\s*normal/s);
+  assert.match(css, /@media\(max-width:\s*639px\)[\s\S]*\.disclosure-content\s*>\s*\.panel\s*\{[^}]*background:\s*transparent/s);
+  assert.match(css, /@media\(max-width:\s*639px\)[\s\S]*\.viz-svg\s*\{[^}]*max-height:\s*170px/s);
+  assert.match(css, /@media\s*\(max-width:\s*399px\)[\s\S]*\.multi-trend-grid\.compact/s);
+  assert.match(css, /\.checkin-workspace\s*\{[^}]*max-width:\s*1340px/);
+  assert.match(css, /@media\(min-width:\s*1024px\)[\s\S]*\.checkin-workspace\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*330px/);
+  assert.match(css, /@media\(min-width:\s*1024px\)[\s\S]*\.checkin-context\s*\{[^}]*position:\s*sticky/);
+
+  const anatomySrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'components', 'BodyAnatomy3D.tsx'), 'utf8');
+  assert.match(anatomySrc, /camera\.position\.set\(0\.72,\s*0\.24,\s*3\.68\)/);
+  assert.match(anatomySrc, /const syncViewOffset = \(\) => \{\s*camera\.aspect = viewportW \/ viewportH;/);
+
+  const ecgSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'components', 'ECGMonitor.tsx'), 'utf8');
+  assert.match(ecgSrc, /canvas\.clientWidth/);
 });

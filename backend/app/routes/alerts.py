@@ -8,6 +8,7 @@ from backend.app.schemas.alert import AlertAcknowledge, AlertItem
 router = APIRouter(prefix="/alerts", tags=["Alerts"])
 
 in_memory_alerts: Dict[str, AlertItem] = {}
+_synced_active_types_by_astronaut: Dict[str, set] = {}
 
 
 def _dedupe_active_alerts(items: List[AlertItem]) -> List[AlertItem]:
@@ -26,16 +27,45 @@ def _dedupe_active_alerts(items: List[AlertItem]) -> List[AlertItem]:
 
 
 @router.get("", response_model=List[AlertItem])
-async def get_alerts():
+async def get_alerts(astronaut_id: Optional[str] = Query(None)):
     supabase = get_supabase()
     if supabase:
         try:
-            res = supabase.table("alerts").select("*").order("timestamp", desc=True).limit(40).execute()
-            if res.data and len(res.data) > 0:
-                return _dedupe_active_alerts([AlertItem(**item) for item in res.data])
+            # Query open alerts separately so high-volume activity on one profile never pushes another crew's active alerts past the cap.
+            open_q = supabase.table("alerts").select("*").eq("acknowledged", False)
+            recent_q = supabase.table("alerts").select("*")
+            if astronaut_id:
+                open_q = open_q.eq("astronaut_id", astronaut_id)
+                recent_q = recent_q.eq("astronaut_id", astronaut_id)
+            open_res = open_q.order("timestamp", desc=True).limit(100).execute()
+            recent_res = recent_q.order("timestamp", desc=True).limit(40).execute()
+            merged_by_id: Dict[str, dict] = {}
+            for row in (open_res.data or []) + (recent_res.data or []):
+                row_id = row.get("id")
+                row_aid = row.get("astronaut_id")
+                row_type = row.get("alert_type")
+                if not row_id or row_id in merged_by_id:
+                    continue
+                synced_types = _synced_active_types_by_astronaut.get(row_aid)
+                if synced_types is not None and not row.get("acknowledged") and row_type not in synced_types:
+                    continue
+                merged_by_id[row_id] = row
+
+            for mem in in_memory_alerts.values():
+                if astronaut_id and mem.astronaut_id != astronaut_id:
+                    continue
+                payload = mem.model_dump()
+                payload["timestamp"] = mem.timestamp.isoformat()
+                merged_by_id[mem.id] = payload
+
+            if merged_by_id:
+                return _dedupe_active_alerts([AlertItem(**item) for item in merged_by_id.values()])
         except Exception:
             pass
-    return _dedupe_active_alerts(list(in_memory_alerts.values()))
+    items = list(in_memory_alerts.values())
+    if astronaut_id:
+        items = [a for a in items if a.astronaut_id == astronaut_id]
+    return _dedupe_active_alerts(items)
 
 
 @router.post("/ack-all")
@@ -110,4 +140,5 @@ async def acknowledge_alert(alert_id: str, ack: AlertAcknowledge):
 @router.delete("/clear")
 async def clear_all_alerts():
     in_memory_alerts.clear()
+    _synced_active_types_by_astronaut.clear()
     return {"status": "CLEARED"}

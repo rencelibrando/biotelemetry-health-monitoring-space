@@ -5,7 +5,7 @@ from fastapi import APIRouter, Query
 
 from backend.app.core.config import settings
 from backend.app.core.supabase_client import get_supabase
-from backend.app.routes.alerts import in_memory_alerts
+from backend.app.routes.alerts import _synced_active_types_by_astronaut, in_memory_alerts
 from backend.app.schemas.telemetry import TelemetryBatchSync, VitalSigns
 from backend.app.services.analyzer import analyzer
 from backend.app.services.nasa_baselines import nasa_baselines
@@ -14,7 +14,7 @@ from backend.app.services.supabase_sync import (
     TELEMETRY_BASE_KEYS,
     insert_batch_with_fallback,
     insert_with_fallback,
-    persist_alerts_to_db,
+    sync_astronaut_alerts_in_db,
 )
 
 router = APIRouter(prefix="/telemetry", tags=["Telemetry"])
@@ -90,6 +90,7 @@ async def get_latest_telemetry(
     effective_kp = simulator.resolve_effective_kp(solar_storm)
     new_alerts = analyzer.evaluate_vitals(vitals, kp_index=effective_kp)
     active_types = {a.alert_type for a in new_alerts}
+    _synced_active_types_by_astronaut[astronaut_id] = active_types
 
     # Remove alerts whose condition has cleared so returning hazards notify freshly.
     stale_ids = [
@@ -100,7 +101,6 @@ async def get_latest_telemetry(
     for aid in stale_ids:
         in_memory_alerts.pop(aid, None)
 
-    newly_created_alerts = []
     for alert in new_alerts:
         # Update existing ongoing episode (preserving seen state unless escalated to CRITICAL).
         existing = next(
@@ -121,9 +121,6 @@ async def get_latest_telemetry(
             existing.hazard_domain = alert.hazard_domain
         else:
             in_memory_alerts[alert.id] = alert
-            alert_payload = alert.model_dump()
-            alert_payload["timestamp"] = alert.timestamp.isoformat()
-            newly_created_alerts.append(alert_payload)
 
     supabase = get_supabase()
     now_mono = time.monotonic()
@@ -139,13 +136,14 @@ async def get_latest_telemetry(
         if ok:
             _last_db_write[astronaut_id] = now_mono
 
-    if supabase and newly_created_alerts:
-        persist_alerts_to_db(supabase, newly_created_alerts)
-    if supabase and stale_ids:
-        try:
-            supabase.table("alerts").update({"acknowledged": True}).eq("astronaut_id", astronaut_id).eq("acknowledged", False).execute()
-        except Exception:
-            pass
+    if supabase:
+        managed_alerts = [a for a in in_memory_alerts.values() if a.astronaut_id == astronaut_id]
+        adopted_ids = sync_astronaut_alerts_in_db(supabase, astronaut_id, managed_alerts)
+        for mem_id, db_id in adopted_ids.items():
+            mem_alert = in_memory_alerts.pop(mem_id, None)
+            if mem_alert is not None:
+                mem_alert.id = db_id
+                in_memory_alerts[db_id] = mem_alert
 
     return vitals
 

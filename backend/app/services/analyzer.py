@@ -236,8 +236,8 @@ class HealthAnalyzer:
             add_alert(
                 "CRITICAL",
                 "RADIATION_SPIKE",
-                f"Solar Particle Event / High radiation dosage ({vitals.radiation_rate} uSv/h). Seek storm shelter!",
-                f"Rad {vitals.radiation_rate} uSv/h",
+                f"Solar Particle Event / High radiation dosage ({vitals.radiation_rate:.1f} uSv/h). Seek storm shelter!",
+                f"Rad {vitals.radiation_rate:.1f} uSv/h",
                 "Relocate crew to shielded storm shelter rack (water/polyethylene shielding) immediately.",
                 "Space Radiation",
             )
@@ -245,8 +245,8 @@ class HealthAnalyzer:
             add_alert(
                 "WARNING",
                 "RADIATION_SPIKE",
-                f"Elevated ambient radiation ({vitals.radiation_rate} uSv/h). Limit unshielded EVA duration.",
-                f"Rad {vitals.radiation_rate} uSv/h",
+                f"Elevated ambient radiation ({vitals.radiation_rate:.1f} uSv/h). Limit unshielded EVA duration.",
+                f"Rad {vitals.radiation_rate:.1f} uSv/h",
                 "Defer external EVA and track 15-minute dosimeter accumulation.",
                 "Space Radiation",
             )

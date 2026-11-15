@@ -30,6 +30,25 @@ export const defaultSimulationConfig = (): SimulationConfig => ({
   solarStorm: 'LIVE_DONKI',
 });
 
+export function isSimulationConfigEqual(a: SimulationConfig, b: SimulationConfig): boolean {
+  return (
+    a.anomaly === b.anomaly &&
+    a.missionZone === b.missionZone &&
+    a.missionDay === b.missionDay &&
+    a.evaActive === b.evaActive &&
+    a.shielding === b.shielding &&
+    a.solarStorm === b.solarStorm
+  );
+}
+
+export function resolveSimulationKp(config: SimulationConfig, liveKp = 2.3): number {
+  const safeLive = Number.isFinite(liveKp) ? Math.max(0, Math.min(9, liveKp)) : 2.3;
+  const override = SOLAR_STORM_OPTIONS.find(s => s.id === config.solarStorm)?.kpOverride;
+  return override !== null && override !== undefined && override > 0
+    ? Math.max(safeLive, override)
+    : safeLive;
+}
+
 export interface MissionZoneSpec {
   id: MissionZoneId;
   label: string;
@@ -383,9 +402,11 @@ export function evaluateLocalAlerts(vitals: VitalSigns, kpIndex = 0): AlertItem[
   }
 
   if (vitals.radiation_rate >= 60) {
-    push('CRITICAL', 'RADIATION_SPIKE', `Solar Particle Event / High radiation dosage (${vitals.radiation_rate} uSv/h). Seek storm shelter!`, `Rad ${vitals.radiation_rate} uSv/h`, 'Relocate crew to water/polyethylene storm shelter rack immediately.', 'Space Radiation');
+    const radText = vitals.radiation_rate.toFixed(1);
+    push('CRITICAL', 'RADIATION_SPIKE', `Solar Particle Event / High radiation dosage (${radText} uSv/h). Seek storm shelter!`, `Rad ${radText} uSv/h`, 'Relocate crew to water/polyethylene storm shelter rack immediately.', 'Space Radiation');
   } else if (vitals.radiation_rate >= 30) {
-    push('WARNING', 'RADIATION_SPIKE', `Elevated ambient radiation (${vitals.radiation_rate} uSv/h). Limit unshielded EVA duration.`, `Rad ${vitals.radiation_rate} uSv/h`, 'Defer external EVA and track 15-minute dosimeter accumulation.', 'Space Radiation');
+    const radText = vitals.radiation_rate.toFixed(1);
+    push('WARNING', 'RADIATION_SPIKE', `Elevated ambient radiation (${radText} uSv/h). Limit unshielded EVA duration.`, `Rad ${radText} uSv/h`, 'Defer external EVA and track 15-minute dosimeter accumulation.', 'Space Radiation');
   }
 
   if ((vitals.orbital_phase === 'saa_transit' && vitals.radiation_rate >= 24) || (vitals.orbital_phase === 'high_latitude' && kpIndex >= 5)) {

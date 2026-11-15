@@ -199,6 +199,7 @@ class BiotelemetrySimulator:
             "ASTRO-03": {"hr": 58.0, "spo2": 98.4, "temp": 36.7, "rad": 15.2, "hrv": 64.0, "eva": True, "phase": 0.67},
         }
         self.active_kp: float = 1.5
+        self._last_config: Dict[str, tuple] = {}
 
     def set_space_weather_kp(self, kp_index: float) -> None:
         self.active_kp = max(0.0, min(9.0, float(kp_index)))
@@ -275,6 +276,16 @@ class BiotelemetrySimulator:
         eva_rad_mult = 1.15 if is_eva and shield_key == "NOMINAL" else 1.0
         storm_rad = storm_cfg["rad_bonus_usv_h"] * (0.35 if zone["magnetosphere_shielded"] and shield_key != "UNSHIELDED_EVA" else 1.0)
         target_rad = (ambient_base + storm_rad) * shield_mult * eva_rad_mult
+
+        config_sig = (zone_key, day, shield_key, solar_storm, is_eva, anomaly_mode)
+        if self._last_config.get(astronaut_id) != config_sig:
+            # Re-anchor state immediately on simulation parameter changes so hazards clear/shift without decay lag.
+            self._last_config[astronaut_id] = config_sig
+            base["hr"] = target_hr
+            base["spo2"] = 98.6
+            base["temp"] = target_temp
+            base["rad"] = target_rad
+            base["hrv"] = target_hrv
 
         # Mean-reverting Ornstein-Uhlenbeck style drift calibrated to NASA baselines
         base["hr"] += 0.25 * (target_hr - base["hr"]) + random.uniform(-0.8, 0.8)
@@ -362,7 +373,7 @@ class BiotelemetrySimulator:
         elif anomaly_mode == "HYPERGLYCEMIA":
             blood_glucose = round(random.uniform(195.0, 232.0), 1)
             hydration_pct = round(random.uniform(80.0, 85.0), 1)
-        elif anomaly_mode in ("DEHYDRATION", "HEAT_STRESS", "ORTHOSTATIC_HYPOTENSION"):
+        elif anomaly_mode in ("DEHYDRATION", "HEAT_STRESS", "ORTHOSTATIC", "ORTHOSTATIC_HYPOTENSION"):
             hydration_pct = round(random.uniform(79.0, 83.5), 1)
             blood_glucose += 14.0
         elif anomaly_mode == "RADIATION_SPIKE":

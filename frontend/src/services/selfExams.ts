@@ -1,6 +1,12 @@
 import { localDb } from '../db/localDb';
 import type { ImageAssessmentRecord, SelfExamType, VitalSigns } from '../types/telemetry';
-import { analyzeSelfExamImageApi, syncAssessmentRemote } from './api';
+import {
+  analyzeSelfExamImageApi,
+  fetchAssessmentsRemote,
+  isOnlineHttpBrowser,
+  syncAssessmentRemote,
+  type RemoteAssessmentRow,
+} from './api';
 
 export interface SelfExamGuideSpec {
   id: SelfExamType;
@@ -132,10 +138,64 @@ export function generateReferenceScanDataUrl(examType: SelfExamType): string {
   return canvas.toDataURL('image/png');
 }
 
+export function buildObservationSpeechText(record: ImageAssessmentRecord): string {
+  const guide = SELF_EXAM_GUIDES[record.examType];
+  const label = guide?.label ?? record.examType;
+  const actions = record.recommendedActions.slice(0, 3).join('. ');
+  const parts = [
+    `${label} assessment: ${record.severity}.`,
+    record.findings,
+    actions ? `Recommended actions: ${actions}.` : '',
+    record.groundConsultRequired ? 'Ground Flight Surgeon review is recommended.' : '',
+  ].filter(Boolean);
+  return parts.join(' ');
+}
+
+export function remoteRowToAssessment(row: RemoteAssessmentRow): ImageAssessmentRecord {
+  const validExam: SelfExamType =
+    row.exam_type === 'dermal_radiation' || row.exam_type === 'glucometer_nutrition'
+      ? row.exam_type
+      : 'ocular_ultrasound';
+  return {
+    id: row.client_id || row.id || `remote-exam-${row.astronaut_id}-${row.recorded_at}`,
+    astronautId: row.astronaut_id,
+    examType: validExam,
+    recordedAt: row.recorded_at,
+    severity: row.severity || 'nominal',
+    findings: row.findings,
+    recommendedActions: Array.isArray(row.recommended_actions) ? row.recommended_actions : [],
+    groundConsultRequired: Boolean(row.ground_consult_required),
+    analysisSource: row.analysis_source || 'database',
+    imageQuality: 'acceptable',
+    ...(row.thumbnail_data_url ? { thumbnailDataUrl: row.thumbnail_data_url } : {}),
+  };
+}
+
 export async function listImageAssessments(astronautId: string): Promise<ImageAssessmentRecord[]> {
   try {
     const items = await localDb.imagingAssessments.where('astronautId').equals(astronautId).toArray();
-    return items.sort((a, b) => b.recordedAt.localeCompare(a.recordedAt));
+    const sortedLocal = items.sort((a, b) => b.recordedAt.localeCompare(a.recordedAt));
+    if (!isOnlineHttpBrowser()) return sortedLocal;
+    try {
+      const { records } = await fetchAssessmentsRemote(astronautId, 40);
+      if (!Array.isArray(records) || records.length === 0) return sortedLocal;
+      const merged = new Map<string, ImageAssessmentRecord>();
+      for (const item of sortedLocal) merged.set(item.id, item);
+      const remoteOnly: ImageAssessmentRecord[] = [];
+      for (const row of records) {
+        const mapped = remoteRowToAssessment(row);
+        if (!merged.has(mapped.id)) {
+          merged.set(mapped.id, mapped);
+          remoteOnly.push(mapped);
+        }
+      }
+      if (remoteOnly.length > 0) {
+        await localDb.imagingAssessments.bulkPut(remoteOnly).catch(() => {});
+      }
+      return [...merged.values()].sort((a, b) => b.recordedAt.localeCompare(a.recordedAt));
+    } catch {
+      return sortedLocal;
+    }
   } catch {
     return [];
   }
@@ -205,7 +265,7 @@ export async function runAndSaveSelfExam(params: {
   }
 
   if (!params.offline) {
-    void syncAssessmentRemote({
+    const payload = {
       client_id: record.id,
       astronaut_id: record.astronautId,
       exam_type: record.examType,
@@ -215,7 +275,9 @@ export async function runAndSaveSelfExam(params: {
       recommended_actions: record.recommendedActions,
       ground_consult_required: record.groundConsultRequired,
       analysis_source: record.analysisSource,
-    }).catch(() => {});
+      ...(record.thumbnailDataUrl ? { thumbnail_data_url: record.thumbnailDataUrl } : {}),
+    };
+    void syncAssessmentRemote(payload).catch(() => {});
   }
 
   return record;

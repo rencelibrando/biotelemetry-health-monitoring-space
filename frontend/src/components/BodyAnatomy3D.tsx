@@ -584,8 +584,9 @@ export default function BodyAnatomy3D({
       const scene = new THREE.Scene();
       scene.fog = new THREE.FogExp2(0x051322, 0.16);
 
-      const camera = new THREE.PerspectiveCamera(35, initWidth / initHeight, 0.03, 20);
-      camera.position.set(0.62, 0.34, 2.86);
+      const camera = new THREE.PerspectiveCamera(36, initWidth / initHeight, 0.03, 20);
+      // Frame the full head-to-feet astronaut figure symmetrically with top HUD and floor clearance.
+      camera.position.set(0.72, 0.24, 3.68);
 
       const controlsInstance = new OrbitControlsCtor(camera, renderer.domElement);
       controls = controlsInstance;
@@ -597,13 +598,13 @@ export default function BodyAnatomy3D({
       controlsInstance.zoomToCursor = false;
       controlsInstance.enablePan = false;
       controlsInstance.screenSpacePanning = true;
-      controlsInstance.minDistance = 0.28;
-      controlsInstance.maxDistance = 4.2;
+      controlsInstance.minDistance = 0.45;
+      controlsInstance.maxDistance = 5.4;
       controlsInstance.minPolarAngle = 0.03;
       controlsInstance.maxPolarAngle = Math.PI - 0.03;
       controlsInstance.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: null, RIGHT: null };
       controlsInstance.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
-      controlsInstance.target.set(0, 0.04, 0);
+      controlsInstance.target.set(0, -0.02, 0);
       controlsInstance.update();
 
       scene.add(new THREE.AmbientLight(0x9bdaf3, 0.72));
@@ -962,7 +963,7 @@ export default function BodyAnatomy3D({
 
       let viewportW = initWidth;
       let viewportH = initHeight;
-      let focusGoalY = 0.04;
+      let focusGoalY = -0.02;
       let viewPanX = 0;
       let viewPanY = 0;
       let viewPanGoalX = 0;
@@ -979,17 +980,17 @@ export default function BodyAnatomy3D({
         glideRef.current = {
           azimuthRad: (13 * Math.PI) / 180,
           polarRad: 1.46,
-          targetY: 0.04,
-          distance: 2.91,
+          targetY: -0.02,
+          distance: 3.68,
           active: true,
           needsReset: true,
         };
       };
 
       const syncViewOffset = () => {
+        camera.aspect = viewportW / viewportH;
         if (Math.abs(viewPanX) < 0.05 && Math.abs(viewPanY) < 0.05) {
           if (camera.view?.enabled) camera.clearViewOffset();
-          camera.aspect = viewportW / viewportH;
           camera.updateProjectionMatrix();
           return;
         }
@@ -1396,7 +1397,7 @@ export default function BodyAnatomy3D({
           projVec.project(camera);
 
           const xPct = Math.max(8, Math.min(92, (projVec.x * 0.5 + 0.5) * 100));
-          const yPct = Math.max(7, Math.min(93, (-projVec.y * 0.5 + 0.5) * 100));
+          const yPct = Math.max(13, Math.min(90, (-projVec.y * 0.5 + 0.5) * 100));
           const isBackSide = cameraSideDot < -0.02;
           const isBehindCamera = projVec.z > 1;
 

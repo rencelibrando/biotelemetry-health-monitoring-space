@@ -1,24 +1,7 @@
 import { useMemo } from 'react';
 import { CheckCircle2, AlertTriangle, BellRing, CheckCheck, ShieldAlert } from 'lucide-react';
-import type { AlertItem, AlertType } from '../types/telemetry';
-
-const labels: Record<AlertType, string> = {
-  HYPOXIA: 'Low blood oxygen',
-  TACHYCARDIA: 'Fast heart rate',
-  BRADYCARDIA: 'Slow heart rate',
-  RADIATION_SPIKE: 'Rise in radiation',
-  HEAT_STRESS: 'High body temperature',
-  HYPOTHERMIA: 'Low body temperature',
-  HYPERCAPNIA: 'Elevated CO2 / breathing rate',
-  ORTHOSTATIC_HYPOTENSION: 'Low blood pressure / orthostatic',
-  AUTONOMIC_FATIGUE: 'Autonomic HRV fatigue',
-  SOLAR_STORM_SHELTER: 'Orbital storm / SAA shelter',
-  DEEP_SPACE_DOSE: 'Cumulative mission dose',
-  HYPOGLYCEMIA: 'Low blood sugar',
-  HYPERGLYCEMIA: 'High blood sugar',
-  DEHYDRATION: 'Low hydration / fluid loss',
-  IMMUNE_SUPPRESSION: 'Reduced immune count (WBC)',
-};
+import type { AlertItem } from '../types/telemetry';
+import { ALERT_LABELS as labels } from '../services/alertSpeech';
 
 const severityOrder: Record<AlertItem['severity'], number> = { CRITICAL: 0, WARNING: 1, INFO: 2 };
 

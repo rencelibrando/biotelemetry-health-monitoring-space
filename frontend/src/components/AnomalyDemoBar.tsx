@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Sparkles,
   Stethoscope,
@@ -15,6 +15,7 @@ import {
   defaultSimulationConfig,
   formatLatency,
   getMissionZone,
+  isSimulationConfigEqual,
   MISSION_ZONES,
   SHIELDING_OPTIONS,
   SIMULATION_SCENARIOS,
@@ -32,7 +33,7 @@ interface AnomalyDemoBarProps {
   vitals?: VitalSigns;
   onTrigger: (anomaly: string) => void;
   onUpdateSimConfig?: (next: SimulationConfig) => void;
-  onRunDiagnostics: () => void;
+  onRunDiagnostics: (appliedConfig?: SimulationConfig) => void;
   isDiagnosing: boolean;
 }
 
@@ -56,36 +57,78 @@ export function AnomalyDemoBar({
   isDiagnosing,
 }: AnomalyDemoBarProps) {
   const [category, setCategory] = useState<ScenarioCategory>('orbital');
+  const [draftConfig, setDraftConfig] = useState<SimulationConfig>(() => ({
+    ...simConfig,
+    anomaly: currentAnomaly || simConfig.anomaly,
+  }));
 
+  useEffect(() => {
+    setDraftConfig({
+      ...simConfig,
+      anomaly: currentAnomaly || simConfig.anomaly,
+    });
+  }, [
+    currentAnomaly,
+    simConfig.anomaly,
+    simConfig.missionZone,
+    simConfig.missionDay,
+    simConfig.evaActive,
+    simConfig.shielding,
+    simConfig.solarStorm,
+  ]);
+
+  // Stage edits locally until Run Diagnostics commits them to live telemetry.
   const update = (patch: Partial<SimulationConfig>) => {
-    const merged = { ...simConfig, ...patch };
-    if (patch.anomaly !== undefined) onTrigger(patch.anomaly);
-    if (onUpdateSimConfig) onUpdateSimConfig(merged);
+    setDraftConfig(prev => ({ ...prev, ...patch }));
   };
 
-  const zone = getMissionZone(simConfig.missionZone);
-  const activeScenario = SIMULATION_SCENARIOS.find(s => s.mode === currentAnomaly) ?? SIMULATION_SCENARIOS[0];
+  const committedConfig: SimulationConfig = {
+    ...simConfig,
+    anomaly: currentAnomaly || simConfig.anomaly,
+  };
+  const hasPendingChanges = !isSimulationConfigEqual(draftConfig, committedConfig);
+  const liveZone = getMissionZone(committedConfig.missionZone);
+  const draftZone = getMissionZone(draftConfig.missionZone);
+  const draftScenario = SIMULATION_SCENARIOS.find(s => s.mode === draftConfig.anomaly) ?? SIMULATION_SCENARIOS[0];
   const categoryScenarios = SIMULATION_SCENARIOS.filter(s => s.category === category);
-  const envRisks = vitals ? computeSpaceEnvironmentRisks(vitals, simConfig) : [];
+  const envRisks = vitals ? computeSpaceEnvironmentRisks(vitals, committedConfig) : [];
+
+  const handleReset = () => {
+    const reset = defaultSimulationConfig();
+    setDraftConfig(reset);
+    onTrigger(reset.anomaly);
+    onUpdateSimConfig?.(reset);
+  };
+
+  const handleRunDiagnostics = () => {
+    const targetConfig = { ...draftConfig };
+    if (hasPendingChanges) {
+      onTrigger(targetConfig.anomaly);
+      onUpdateSimConfig?.(targetConfig);
+    }
+    onRunDiagnostics(targetConfig);
+  };
 
   return (
-    <div className="panel simulation-controls">
+    <div className="simulation-controls">
       <div className="section-heading">
         <h3><Sparkles size={18} /> Mission &amp; Spaceflight Health Simulation Lab</h3>
         <div className="viz-actions">
+          <span
+            className={`pill ${hasPendingChanges ? 'sim-stage-pending' : 'sim-stage-synced'}`}
+            role="status"
+          >
+            {hasPendingChanges ? 'Pending changes · Press Run Diagnostics' : 'Synced with live telemetry'}
+          </span>
           <button
             type="button"
             className="button secondary compact-btn"
-            onClick={() => {
-              const reset = defaultSimulationConfig();
-              onTrigger(reset.anomaly);
-              onUpdateSimConfig?.(reset);
-            }}
+            onClick={handleReset}
           >
             <RotateCcw size={14} />
             Reset nominal
           </button>
-          <button type="button" className="button primary" onClick={onRunDiagnostics} disabled={isDiagnosing}>
+          <button type="button" className="button primary" onClick={handleRunDiagnostics} disabled={isDiagnosing}>
             <Stethoscope size={16} />
             {isDiagnosing ? 'Analyzing…' : 'Run Diagnostics'}
           </button>
@@ -105,14 +148,14 @@ export function AnomalyDemoBar({
           </div>
           <div className="sim-impact-metric">
             <span className="eyebrow">DISTANCE &amp; SIGNAL LAG</span>
-            <strong>{zone.distanceLabel}</strong>
-            <small className="muted">One-way latency: {formatLatency(vitals.comms_latency_sec ?? zone.commsLatencySec)}</small>
+            <strong>{liveZone.distanceLabel}</strong>
+            <small className="muted">One-way latency: {formatLatency(vitals.comms_latency_sec ?? liveZone.commsLatencySec)}</small>
           </div>
           <div className="sim-impact-metric">
             <span className="eyebrow">MISSION DURATION &amp; DOSE</span>
-            <strong>Day {simConfig.missionDay}</strong>
+            <strong>Day {committedConfig.missionDay}</strong>
             <small className="muted">
-              Cumulative: {vitals.cumulative_dose_msv !== undefined ? `${vitals.cumulative_dose_msv.toFixed(1)} mSv` : '--'} · {zone.gravityG}g
+              Cumulative: {vitals.cumulative_dose_msv !== undefined ? `${vitals.cumulative_dose_msv.toFixed(1)} mSv` : '--'} · {liveZone.gravityG}g
             </small>
           </div>
         </div>
@@ -128,8 +171,8 @@ export function AnomalyDemoBar({
                   key={z.id}
                   type="button"
                   role="radio"
-                  aria-checked={simConfig.missionZone === z.id}
-                  className={`sim-option-btn ${simConfig.missionZone === z.id ? 'active' : ''}`}
+                  aria-checked={draftConfig.missionZone === z.id}
+                  className={`sim-option-btn ${draftConfig.missionZone === z.id ? 'active' : ''}`}
                   onClick={() => update({ missionZone: z.id as MissionZoneId })}
                 >
                   <strong>{z.label}</strong>
@@ -137,7 +180,7 @@ export function AnomalyDemoBar({
                 </button>
               ))}
             </div>
-            <p className="helper">{zone.summary}</p>
+            <p className="helper">{draftZone.summary}</p>
           </div>
 
           <div className="sim-control-block">
@@ -147,19 +190,19 @@ export function AnomalyDemoBar({
                 type="range"
                 min={1}
                 max={540}
-                value={simConfig.missionDay}
+                value={draftConfig.missionDay}
                 aria-label="Simulated mission duration in days"
                 onChange={e => update({ missionDay: Number(e.target.value) })}
               />
-              <span className="pill">Day {simConfig.missionDay}</span>
+              <span className="pill">Day {draftConfig.missionDay}</span>
             </div>
             <div className="flare-chip-row" role="group" aria-label="Mission duration presets">
               {DURATION_PRESETS.map(day => (
                 <button
                   key={day}
                   type="button"
-                  className={`flare-chip ${simConfig.missionDay === day ? 'active' : ''}`}
-                  aria-pressed={simConfig.missionDay === day}
+                  className={`flare-chip ${draftConfig.missionDay === day ? 'active' : ''}`}
+                  aria-pressed={draftConfig.missionDay === day}
                   onClick={() => update({ missionDay: day })}
                 >
                   Day {day}
@@ -176,8 +219,8 @@ export function AnomalyDemoBar({
                       key={s.id}
                       type="button"
                       role="radio"
-                      aria-checked={simConfig.shielding === s.id}
-                      className={`flare-chip ${simConfig.shielding === s.id ? 'active' : ''}`}
+                      aria-checked={draftConfig.shielding === s.id}
+                      className={`flare-chip ${draftConfig.shielding === s.id ? 'active' : ''}`}
                       onClick={() => update({ shielding: s.id as ShieldingMode })}
                     >
                       {s.label}
@@ -193,8 +236,8 @@ export function AnomalyDemoBar({
                       key={st.id}
                       type="button"
                       role="radio"
-                      aria-checked={simConfig.solarStorm === st.id}
-                      className={`flare-chip ${simConfig.solarStorm === st.id ? 'active' : ''}`}
+                      aria-checked={draftConfig.solarStorm === st.id}
+                      className={`flare-chip ${draftConfig.solarStorm === st.id ? 'active' : ''}`}
                       onClick={() => update({ solarStorm: st.id as SolarStormMode })}
                     >
                       {st.label}
@@ -210,7 +253,9 @@ export function AnomalyDemoBar({
       <div className="sim-scenarios-section">
         <div className="row">
           <span className="eyebrow"><Activity size={12} /> 3. ENVIRONMENTAL &amp; BIOMETRIC STRESS SCENARIOS ({SIMULATION_SCENARIOS.length})</span>
-          <span className="helper">Active: <strong>{activeScenario.label}</strong>: {activeScenario.summary}</span>
+          <span className="helper">
+            {hasPendingChanges ? 'Staged' : 'Active'}: <strong>{draftScenario.label}</strong>: {draftScenario.summary}
+          </span>
         </div>
         <div className="segmented scenario-picker" role="tablist" aria-label="Simulation scenario categories">
           {CATEGORY_LABELS.map(cat => (
@@ -231,7 +276,7 @@ export function AnomalyDemoBar({
               key={sc.mode}
               type="button"
               className="button secondary"
-              aria-pressed={currentAnomaly === sc.mode}
+              aria-pressed={draftConfig.anomaly === sc.mode}
               onClick={() => update({ anomaly: sc.mode })}
             >
               {sc.label}

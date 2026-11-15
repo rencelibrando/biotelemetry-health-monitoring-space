@@ -25,6 +25,8 @@ import {
   defaultSimulationConfig,
   evaluateLocalAlerts,
   getMissionZone,
+  isSimulationConfigEqual,
+  resolveSimulationKp,
   SHIELDING_OPTIONS,
   SOLAR_STORM_OPTIONS,
   type SimulationConfig,
@@ -36,8 +38,9 @@ export function simulatedVitals(
   anomaly = 'NONE',
   simConfig: SimulationConfig = defaultSimulationConfig(),
   kpIndex = 1.5,
+  atMs = Date.now(),
 ): VitalSigns {
-  const nowSec = Date.now() / 1000;
+  const nowSec = atMs / 1000;
   const orbitWave = Math.sin((2 * Math.PI * (nowSec % 5560)) / 5560);
   const zone = getMissionZone(simConfig.missionZone);
   const shield = SHIELDING_OPTIONS.find(s => s.id === simConfig.shielding) ?? SHIELDING_OPTIONS[0];
@@ -161,7 +164,7 @@ export function simulatedVitals(
 
   const partial: VitalSigns = {
     astronaut_id: id,
-    timestamp: new Date().toISOString(),
+    timestamp: new Date(atMs).toISOString(),
     heart_rate: hr,
     spo2,
     core_temp: temp,
@@ -193,13 +196,150 @@ export function simulatedVitals(
   return partial;
 }
 
+// Pre-seed a rolling orbital window so Live Telemetry sparklines render curves on first paint.
+export function seedSimulatedHistory(
+  id: string,
+  anomaly = 'NONE',
+  simConfig: SimulationConfig = defaultSimulationConfig(),
+  count = 24,
+  stepSec = 90,
+  endMs = Date.now(),
+): VitalSigns[] {
+  const total = Math.max(1, count);
+  return Array.from({ length: total }, (_, idx) => {
+    const pointMs = endMs - (total - 1 - idx) * stepSec * 1000;
+    return simulatedVitals(id, anomaly, simConfig, 1.5, pointMs);
+  });
+}
+
+function appendTelemetrySample(
+  prev: VitalSigns[],
+  sample: VitalSigns,
+  id: string,
+  anomaly: string,
+  simConfig: SimulationConfig,
+): VitalSigns[] {
+  const base =
+    prev[0]?.astronaut_id === id
+      ? prev
+      : seedSimulatedHistory(id, anomaly, simConfig, 23, 90, Date.now() - 90_000);
+  return [...base, sample].slice(-36);
+}
+
+export function reconcileCrewAlerts(
+  previous: AlertItem[],
+  incoming: AlertItem[],
+  evaluatedIds: string[],
+): AlertItem[] {
+  const evaluatedSet = new Set(evaluatedIds);
+  const retained = previous.filter(item => !evaluatedSet.has(item.astronaut_id));
+
+  const prevByKey = new Map<string, AlertItem>();
+  for (const item of previous) {
+    if (!evaluatedSet.has(item.astronaut_id)) continue;
+    const key = `${item.astronaut_id}:${item.alert_type}`;
+    const current = prevByKey.get(key);
+    if (!current || item.timestamp >= current.timestamp) {
+      prevByKey.set(key, item);
+    }
+  }
+
+  const nextByKey = new Map<string, AlertItem>();
+  for (const item of incoming) {
+    if (evaluatedSet.size > 0 && !evaluatedSet.has(item.astronaut_id)) continue;
+    const key = `${item.astronaut_id}:${item.alert_type}`;
+    const existing = prevByKey.get(key);
+    const sameEpisode = existing !== undefined && existing.id === item.id;
+    const escalated = existing !== undefined && existing.severity !== 'CRITICAL' && item.severity === 'CRITICAL';
+    const seen = !item.acknowledged && sameEpisode && existing.acknowledged && !escalated ? true : item.acknowledged;
+    const candidate = seen === item.acknowledged ? item : { ...item, acknowledged: true };
+    const current = nextByKey.get(key);
+    if (!current || candidate.timestamp >= current.timestamp) {
+      nextByKey.set(key, candidate);
+    }
+  }
+
+  return [...retained, ...nextByKey.values()].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+}
+
+/**
+ * Reconciles active-astronaut alerts strictly against currently displayed vitals
+ * (including BLE sensor overrides and live Kp) while dropping stale open server alerts
+ * and preserving peer crew alerts and active episode acknowledgements.
+ */
+export function syncActiveProfileAlerts(
+  previous: AlertItem[],
+  incoming: AlertItem[],
+  liveVitals: VitalSigns,
+  kpIndex: number,
+  evaluatedCrewIds?: string[],
+): AlertItem[] {
+  const activeId = liveVitals.astronaut_id;
+  const localAlerts = evaluateLocalAlerts(liveVitals, kpIndex);
+  const activeTypes = new Set(localAlerts.map(item => item.alert_type));
+  const peerIncoming = incoming.filter(item => item.astronaut_id !== activeId);
+
+  const openServerByType = new Map<string, AlertItem>();
+  for (const item of incoming) {
+    if (item.astronaut_id !== activeId || item.acknowledged) continue;
+    const current = openServerByType.get(item.alert_type);
+    if (!current || item.timestamp >= current.timestamp) {
+      openServerByType.set(item.alert_type, item);
+    }
+  }
+
+  const prevByType = new Map<string, AlertItem>();
+  for (const item of previous) {
+    if (item.astronaut_id !== activeId) continue;
+    const current = prevByType.get(item.alert_type);
+    if (!current || item.timestamp >= current.timestamp) {
+      prevByType.set(item.alert_type, item);
+    }
+  }
+
+  const syncedActiveAlerts = localAlerts.map(localItem => {
+    const srv = openServerByType.get(localItem.alert_type);
+    const prev = prevByType.get(localItem.alert_type);
+    const episodeSource = srv ?? prev;
+    const resolvedId = srv?.id ?? (prev?.id.startsWith('local-') ? prev.id : localItem.id);
+    const unchanged =
+      episodeSource !== undefined &&
+      episodeSource.severity === localItem.severity &&
+      episodeSource.trigger_metric === localItem.trigger_metric &&
+      episodeSource.message === localItem.message;
+
+    return {
+      ...localItem,
+      id: resolvedId,
+      acknowledged: false,
+      timestamp: unchanged ? episodeSource.timestamp : localItem.timestamp,
+    };
+  });
+
+  const historicalAcked = incoming.filter(
+    item => item.astronaut_id === activeId && item.acknowledged && !activeTypes.has(item.alert_type),
+  );
+
+  const evaluatedSet = new Set([
+    activeId,
+    ...(evaluatedCrewIds ?? []),
+    ...incoming.map(item => item.astronaut_id),
+  ]);
+  return reconcileCrewAlerts(previous, [...peerIncoming, ...syncedActiveAlerts, ...historicalAcked], [...evaluatedSet]);
+}
+
 export function useTelemetry() {
   const [crew, setCrew] = useState<Astronaut[]>(demoCrew);
+  const crewIdsRef = useRef<string[]>(demoCrew.map(m => m.id));
+  crewIdsRef.current = crew.map(m => m.id);
+  const crewIdsKey = crew.map(m => m.id).join(',');
   const [crewDemo, setCrewDemo] = useState(true);
   const [activeId, setActiveId] = useState('ASTRO-01');
   const [simConfig, setSimConfigState] = useState<SimulationConfig>(() => defaultSimulationConfig());
   const [vitals, setVitals] = useState<VitalSigns>(() => simulatedVitals('ASTRO-01', 'NONE', defaultSimulationConfig()));
-  const [telemetryHistory, setTelemetryHistory] = useState<VitalSigns[]>(() => [simulatedVitals('ASTRO-01', 'NONE', defaultSimulationConfig())]);
+  const [telemetryHistory, setTelemetryHistory] = useState<VitalSigns[]>(() =>
+    seedSimulatedHistory('ASTRO-01', 'NONE', defaultSimulationConfig()),
+  );
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [los, setLos] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
@@ -221,8 +361,15 @@ export function useTelemetry() {
   const bleReadingRef = useRef<BluetoothHrReading | null>(null);
 
   const syncingRef = useRef(false);
+  const liveKpRef = useRef(2.3);
   const offline = los || !online;
   const anomaly = simConfig.anomaly;
+
+  const setLiveKp = useCallback((kp: number | undefined) => {
+    if (typeof kp === 'number' && Number.isFinite(kp)) {
+      liveKpRef.current = Math.max(0, Math.min(9, kp));
+    }
+  }, []);
 
   const setAnomaly = useCallback((mode: string) => {
     setSimConfigState(prev => ({ ...prev, anomaly: mode }));
@@ -325,43 +472,34 @@ export function useTelemetry() {
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout>;
-    setVitals(applyBleOverlay(simulatedVitals(activeId, anomaly, simConfig)));
-    setAlerts([]);
-    setGateway(false);
+    let tickIteration = 0;
+    const immediateVitals = applyBleOverlay(simulatedVitals(activeId, anomaly, simConfig));
+    const immediateKp = resolveSimulationKp(simConfig, liveKpRef.current);
+    setVitals(immediateVitals);
+    setAlerts(previous => syncActiveProfileAlerts(previous, previous, immediateVitals, immediateKp, [activeId]));
+    if (offline) setGateway(false);
     const savedObservations = localDb.alertsStore.where('astronaut_id').equals(activeId).toArray().catch(() => [] as AlertItem[]);
-    // Keep active alerts synced to real-time hazards: drop cleared dangers and preserve seen state for unbroken episodes.
-    const reconcileActiveAlerts = (previous: AlertItem[], incoming: AlertItem[]) => {
-      const incomingForCrew = incoming.filter(item => item.astronaut_id === activeId);
-      const prevByType = new Map<string, AlertItem>();
-      for (const item of previous) {
-        if (item.astronaut_id === activeId) prevByType.set(item.alert_type, item);
-      }
-      const nextByType = new Map<string, AlertItem>();
-      for (const item of incomingForCrew) {
-        const existing = prevByType.get(item.alert_type);
-        const escalated = existing !== undefined && existing.severity !== 'CRITICAL' && item.severity === 'CRITICAL';
-        const seen = !item.acknowledged && existing?.acknowledged && !escalated ? true : item.acknowledged;
-        const candidate = seen === item.acknowledged ? item : { ...item, acknowledged: true };
-        const current = nextByType.get(item.alert_type);
-        if (!current || candidate.timestamp >= current.timestamp) {
-          nextByType.set(item.alert_type, candidate);
-        }
-      }
-      return [...nextByType.values()].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-    };
 
     const mergeLocalSimAlerts = (record: VitalSigns) => {
-      const localObs = evaluateLocalAlerts(record, SOLAR_STORM_OPTIONS.find(s => s.id === simConfig.solarStorm)?.kpOverride ?? 1.5);
-      setAlerts(previous => reconcileActiveAlerts(previous, localObs));
+      const kp = resolveSimulationKp(simConfig, liveKpRef.current);
+      const allIds = crewIdsRef.current.length ? crewIdsRef.current : [activeId];
+      const peerObs = allIds
+        .filter(id => id !== activeId)
+        .flatMap(id => evaluateLocalAlerts(simulatedVitals(id, anomaly, simConfig, kp), kp));
+      setAlerts(previous => syncActiveProfileAlerts(previous, peerObs, record, kp, allIds));
     };
 
     async function tick() {
+      const currentTick = tickIteration;
+      tickIteration += 1;
+      const allIds = crewIdsRef.current.length ? crewIdsRef.current : [activeId];
+      const effectiveKp = resolveSimulationKp(simConfig, liveKpRef.current);
       try {
         if (offline) {
-          const record = applyBleOverlay(simulatedVitals(activeId, anomaly, simConfig));
+          const record = applyBleOverlay(simulatedVitals(activeId, anomaly, simConfig, effectiveKp));
           if (!alive) return;
           setVitals(record);
-          setTelemetryHistory(prev => [...(prev[0]?.astronaut_id === activeId ? prev : []), record].slice(-36));
+          setTelemetryHistory(prev => appendTelemetrySample(prev, record, activeId, anomaly, simConfig));
           setGateway(false);
           mergeLocalSimAlerts(record);
           await localDb.vitalsQueue.add({ ...record, syncedToCloud: false });
@@ -371,52 +509,90 @@ export function useTelemetry() {
             const record = applyBleOverlay(await fetchLatestTelemetry(activeId, anomaly, simConfig));
             if (!alive) return;
             setVitals(record);
-            setTelemetryHistory(prev => [...(prev[0]?.astronaut_id === activeId ? prev : []), record].slice(-36));
+            setTelemetryHistory(prev => appendTelemetrySample(prev, record, activeId, anomaly, simConfig));
             setGateway(true);
             soundService.playBlip();
+            // Keep peer crew evaluated when simulation config shifts and periodically thereafter.
+            const shouldSyncPeers = currentTick === 0 || currentTick % 4 === 0;
+            if (shouldSyncPeers) {
+              const peerIds = allIds.filter(id => id !== activeId);
+              if (peerIds.length) {
+                await Promise.allSettled(peerIds.map(pid => fetchLatestTelemetry(pid, anomaly, simConfig)));
+                if (!alive) return;
+              }
+            }
             try {
               const observations = await fetchAlerts();
               if (!alive) return;
-              setAlerts(previous => reconcileActiveAlerts(previous, observations));
-              const activeObs = observations.filter(a => a.astronaut_id === activeId);
-              if (activeObs.length) {
-                void localDb.alertsStore.bulkPut(activeObs).catch(() => {});
+              const syncedCrew = [...new Set([...allIds, ...observations.map(a => a.astronaut_id)])];
+              let activeObs: AlertItem[] = [];
+              setAlerts(previous => {
+                const nextAlerts = syncActiveProfileAlerts(previous, observations, record, effectiveKp, syncedCrew);
+                activeObs = nextAlerts.filter(a => a.astronaut_id === activeId);
+                return nextAlerts;
+              });
+              if (observations.length) {
+                void localDb.alertsStore.bulkPut(observations).catch(() => {});
               }
               if (activeObs.some(a => a.severity === 'CRITICAL' && !a.acknowledged)) soundService.playEmergencyAlarm();
-            } catch { if (alive) setError('Observation feed is unavailable. Previously received observations are retained.'); }
+            } catch {
+              if (!alive) return;
+              mergeLocalSimAlerts(record);
+              setError('Observation feed is unavailable. Previously received observations are retained.');
+            }
           } catch {
             if (!alive) return;
-            const fallback = applyBleOverlay(simulatedVitals(activeId, anomaly, simConfig));
+            const fallback = applyBleOverlay(simulatedVitals(activeId, anomaly, simConfig, effectiveKp));
             setGateway(false);
             setVitals(fallback);
-            setTelemetryHistory(prev => [...(prev[0]?.astronaut_id === activeId ? prev : []), fallback].slice(-36));
+            setTelemetryHistory(prev => appendTelemetrySample(prev, fallback, activeId, anomaly, simConfig));
             mergeLocalSimAlerts(fallback);
           }
         }
       } catch { if (alive) setError('Local telemetry buffering failed. Check browser storage availability.'); }
       finally { if (alive) timer = setTimeout(tick, 1200); }
     }
-    setTelemetryHistory(prev => (prev[0]?.astronaut_id === activeId ? prev : [simulatedVitals(activeId, anomaly, simConfig)]));
+    setTelemetryHistory(prev =>
+      prev[0]?.astronaut_id === activeId && prev.length >= 12
+        ? prev
+        : seedSimulatedHistory(activeId, anomaly, simConfig),
+    );
     void savedObservations.then(saved => {
       if (alive) {
-        // Seed only today's acknowledged decisions while waiting for live tick evaluation.
+        // Seed only today's acknowledged decisions without erasing other crew profiles.
         const initialAcked = saved.filter(a => a.acknowledged);
-        if (initialAcked.length) setAlerts(initialAcked);
+        if (initialAcked.length) {
+          setAlerts(previous => [
+            ...previous,
+            ...initialAcked.filter(item => !previous.some(p => p.id === item.id)),
+          ]);
+        }
         if (!offline) {
           void fetchTelemetryHistory(activeId, 24)
-            .then(hist => { if (alive && hist.length > 0) setTelemetryHistory(hist.slice(-36)); })
+            .then(hist => {
+              if (!alive || hist.length === 0) return;
+              if (hist.length >= 12) {
+                setTelemetryHistory(hist.slice(-36));
+                return;
+              }
+              const firstTs = new Date(hist[0].timestamp).getTime();
+              const baseEnd = Number.isFinite(firstTs) ? firstTs - 90_000 : Date.now() - 90_000;
+              const pad = seedSimulatedHistory(activeId, anomaly, simConfig, 24 - hist.length, 90, baseEnd);
+              setTelemetryHistory([...pad, ...hist].slice(-36));
+            })
             .catch(() => {});
         }
         void tick();
       }
     });
     return () => { alive = false; clearTimeout(timer); };
-  }, [activeId, anomaly, simConfig, offline, updatePending, applyBleOverlay]);
+  }, [activeId, anomaly, simConfig, crewIdsKey, offline, updatePending, applyBleOverlay]);
 
   const acknowledge = useCallback(async (id: string) => {
     const target = alerts.find(a => a.id === id);
+    const targetCrewId = target?.astronaut_id ?? activeId;
     const matchesTarget = (a: AlertItem) =>
-      a.id === id || (target !== undefined && a.astronaut_id === activeId && a.alert_type === target.alert_type);
+      a.id === id || (target !== undefined && a.astronaut_id === targetCrewId && a.alert_type === target.alert_type);
 
     setAlerts(items => items.map(a => (matchesTarget(a) ? { ...a, acknowledged: true } : a)));
     const matchingIds = alerts.filter(a => matchesTarget(a) && !a.id.startsWith('local-')).map(a => a.id);
@@ -426,7 +602,7 @@ export function useTelemetry() {
     if (offline || !gateway || id.startsWith('local-')) return;
 
     try {
-      await acknowledgeAlert(id, { astronaut_id: activeId, alert_type: target?.alert_type });
+      await acknowledgeAlert(id, { astronaut_id: targetCrewId, alert_type: target?.alert_type });
       setError('');
     } catch {
       setAlerts(items => items.map(a => (matchesTarget(a) ? { ...a, acknowledged: false } : a)));
@@ -435,7 +611,7 @@ export function useTelemetry() {
   }, [alerts, activeId, offline, gateway]);
 
   const acknowledgeAll = useCallback(async () => {
-    const open = alerts.filter(a => !a.acknowledged);
+    const open = alerts.filter(a => !a.acknowledged && a.astronaut_id === activeId);
     if (!open.length) return;
     setAlerts(items => items.map(a => (a.astronaut_id === activeId ? { ...a, acknowledged: true } : a)));
     if (!offline && gateway) {
@@ -451,10 +627,13 @@ export function useTelemetry() {
       if ((event.target as HTMLElement).closest('input,textarea,select,button,a,[contenteditable]')) return;
       const member = crew[Number(event.key) - 1];
       if (member) setActiveId(member.id);
-      if (event.key === ' ') { const alert = alerts.find(a => !a.acknowledged); if (alert) { event.preventDefault(); void acknowledge(alert.id); } }
+      if (event.key === ' ') {
+        const alert = alerts.find(a => !a.acknowledged && a.astronaut_id === activeId);
+        if (alert) { event.preventDefault(); void acknowledge(alert.id); }
+      }
     };
     window.addEventListener('keydown', handler); return () => window.removeEventListener('keydown', handler);
-  }, [alerts, crew, acknowledge]);
+  }, [alerts, activeId, crew, acknowledge]);
 
   async function sync() {
     if (syncingRef.current || offline) return;
@@ -466,16 +645,20 @@ export function useTelemetry() {
     finally { syncingRef.current = false; setSyncing(false); }
   }
 
-  async function diagnose() {
+  async function diagnose(configOverride?: SimulationConfig) {
+    const activeConfig = configOverride ?? simConfig;
+    if (configOverride && !isSimulationConfigEqual(configOverride, simConfig)) {
+      setSimConfigState(configOverride);
+    }
     setDiagnosing(true);
-    try { setDiagnostic(await runDiagnostics(activeId, simConfig)); }
+    try { setDiagnostic(await runDiagnostics(activeId, activeConfig)); }
     catch { setError('Diagnostics require the FastAPI connection. Please retry when the gateway is available.'); }
     finally { setDiagnosing(false); }
   }
 
   return {
     crew, crewDemo, activeId, setActiveId, vitals, telemetryHistory, alerts, anomaly, setAnomaly,
-    simConfig, setSimConfig, acknowledgeAll,
+    simConfig, setSimConfig, setLiveKp, acknowledgeAll,
     los, setLos, online, offline, gateway, pending, syncing, sync, diagnosing,
     diagnose, diagnostic, setDiagnostic, acknowledge, error, setError, notice,
     sound, setSound, bleStatus, bleDeviceName, bleError, connectBle, disconnectBle,

@@ -86,18 +86,27 @@ export function ECGMonitor({
         }
       }
 
+      // Match canvas bitmap size to rendered CSS box so grid cells and QRS slopes stay 1:1 on narrow viewports.
+      const targetW = Math.max(240, Math.min(800, Math.round(canvas.clientWidth || 800)));
+      const targetH = Math.max(96, Math.min(220, Math.round(canvas.clientHeight || 164)));
+      if (canvas.width !== targetW) canvas.width = targetW;
+      if (canvas.height !== targetH) canvas.height = targetH;
+
       const styles = getComputedStyle(canvas);
       ctx.fillStyle = styles.getPropertyValue('--canvas-bg');
-      ctx.fillRect(0, 0, 800, 180);
+      ctx.fillRect(0, 0, targetW, targetH);
       ctx.strokeStyle = styles.getPropertyValue('--chart-grid');
       ctx.lineWidth = 1;
-      for (let x = 0; x < 800; x += 25) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 180); ctx.stroke(); }
-      for (let y = 0; y < 180; y += 25) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(800, y); ctx.stroke(); }
+      for (let x = 0; x < targetW; x += 24) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, targetH); ctx.stroke(); }
+      for (let y = 0; y < targetH; y += 24) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(targetW, y); ctx.stroke(); }
       ctx.strokeStyle = styles.getPropertyValue('--accent');
       ctx.lineWidth = 2;
+      const visibleSamples = history.slice(-targetW);
+      const baselineY = targetH * 0.61;
+      const ampScale = targetH * 0.36;
       ctx.beginPath();
-      history.forEach((value, i) => {
-        const y = 108 - value * 65;
+      visibleSamples.forEach((value, i) => {
+        const y = baselineY - value * ampScale;
         if (i === 0) ctx.moveTo(i, y);
         else ctx.lineTo(i, y);
       });

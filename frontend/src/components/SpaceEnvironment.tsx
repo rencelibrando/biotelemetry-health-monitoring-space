@@ -39,6 +39,18 @@ export function SpaceEnvironmentPanel({
   hideScenarioControls?: boolean;
 }) {
   const scoped = context ? records.filter(record => record.astronautId === context.astronautId) : [];
+  const weatherVisualizer = (
+    <SpaceWeatherVisualizer
+      snapshot={spaceWeatherSnapshot}
+      vitals={vitals}
+      issFeed={issFeed}
+      offline={offline}
+      realtimeConnected={realtimeConnected}
+      loading={spaceWeatherLoading}
+      onRefresh={onRefreshSpaceWeather}
+      onRefreshIss={onRefreshIss}
+    />
+  );
 
   return (
     <section className="panel space-environment-panel" aria-labelledby="space-env-heading">
@@ -57,19 +69,12 @@ export function SpaceEnvironmentPanel({
         </>
       )}
 
-      <div className="open-subsection">
-        <h3>Live DONKI &amp; NOAA Space-Weather Visualization</h3>
-        <SpaceWeatherVisualizer
-          snapshot={spaceWeatherSnapshot}
-          vitals={vitals}
-          issFeed={issFeed}
-          offline={offline}
-          realtimeConnected={realtimeConnected}
-          loading={spaceWeatherLoading}
-          onRefresh={onRefreshSpaceWeather}
-          onRefreshIss={onRefreshIss}
-        />
-      </div>
+      {hideScenarioControls ? weatherVisualizer : (
+        <div className="open-subsection">
+          <h3>Live DONKI &amp; NOAA Space-Weather Visualization</h3>
+          {weatherVisualizer}
+        </div>
+      )}
 
       {!hideScenarioControls && (
         <div className="open-subsection">

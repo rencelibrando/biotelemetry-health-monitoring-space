@@ -17,7 +17,19 @@ class Settings(BaseModel):
     NASA_API_KEY: str = os.getenv("NASA_API_KEY", "DEMO_KEY")
     CRON_SECRET: str = os.getenv("CRON_SECRET", "")
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+    GEMINI_FALLBACK_MODELS: str = os.getenv(
+        "GEMINI_FALLBACK_MODELS",
+        "gemini-3.1-flash-lite,gemini-flash-lite-latest,gemini-3.5-flash",
+    )
+    GEMINI_CACHE_TTL_SECONDS: int = int(os.getenv("GEMINI_CACHE_TTL_SECONDS", "90"))
+    GEMINI_MIN_REQUEST_INTERVAL_SEC: float = float(
+        os.getenv("GEMINI_MIN_REQUEST_INTERVAL_SEC", "0.35")
+    )
+    GEMINI_TTS_ENABLED: bool = os.getenv("GEMINI_TTS_ENABLED", "false").lower() in ("1", "true", "yes")
+    EDGE_TTS_ENABLED: bool = os.getenv("EDGE_TTS_ENABLED", "true").lower() in ("1", "true", "yes")
+    EDGE_TTS_VOICE: str = os.getenv("EDGE_TTS_VOICE", "en-US-AvaNeural")
+    TTS_PREFER_LOCAL: bool = os.getenv("TTS_PREFER_LOCAL", "false").lower() in ("1", "true", "yes")
     DONKI_CACHE_TTL_SECONDS: int = int(os.getenv("DONKI_CACHE_TTL_SECONDS", "300"))
     TELEMETRY_LOG_INTERVAL_SECONDS: int = int(os.getenv("TELEMETRY_LOG_INTERVAL_SECONDS", "15"))
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   ArrowRight,
@@ -6,7 +6,6 @@ import {
   CalendarDays,
   Check,
   Circle,
-  Droplets,
   Flame,
   Orbit,
   Radio,
@@ -31,9 +30,22 @@ import { useEnvironment } from './hooks/useEnvironment';
 import { useSpaceWeather } from './hooks/useSpaceWeather';
 import { SpaceEnvironmentPanel } from './components/SpaceEnvironment';
 import { buildAssistantContext } from './services/ai';
+import { localDb } from './db/localDb';
 import { evaluateMissionRoutines } from './services/missionRoutines';
-import { localDate, missionCatalog } from './services/missions';
+import { localDate } from './services/missions';
 import { listImageAssessments } from './services/selfExams';
+import { resolveSimulationKp } from './services/simulationConfig';
+import {
+  type AlertEpisodeState,
+  buildAlertAnnouncementsByCrew,
+  selectAlertsForProfile,
+  selectNewlyTriggeredAlerts,
+} from './services/alertSpeech';
+import {
+  speakBackgroundAlert,
+  stopAlertSpeaking,
+  syncActiveAlertSpeechKeys,
+} from './services/voiceAssistant';
 import type { ImageAssessmentRecord, SelfExamType } from './types/telemetry';
 import type { Page } from './types/wellness';
 
@@ -41,7 +53,7 @@ type Telemetry = ReturnType<typeof useTelemetry>;
 type SpaceWeatherState = ReturnType<typeof useSpaceWeather>;
 
 function getPage(): Page {
-  const hash = window.location.hash.slice(1);
+  const hash = window.location.hash.replace(/^#\/?/, '').trim();
   return ['dashboard', 'checkin', 'analytics', 'missions', 'ai'].includes(hash) ? hash as Page : 'dashboard';
 }
 
@@ -52,14 +64,22 @@ function Workspace({ telemetry: t, spaceWeather: sw, page }: { telemetry: Teleme
   const today = localDate();
   const observations = t.alerts.filter(alert => alert.astronaut_id === t.activeId);
   const unacknowledged = observations.filter(a => !a.acknowledged);
-  const completed = wellness.completions.filter(item => item.date === today);
   const latest = [...wellness.records].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
 
   const [assessments, setAssessments] = useState<ImageAssessmentRecord[]>([]);
   const [showSelfExam, setShowSelfExam] = useState(false);
   const [activeExamType, setActiveExamType] = useState<SelfExamType>('dermal_radiation');
   const [aiInitialQuestion, setAiInitialQuestion] = useState('');
+  const [aiFocusOrgan, setAiFocusOrgan] = useState<string | undefined>(undefined);
   const clearInitialQuestion = useCallback(() => setAiInitialQuestion(''), []);
+
+  const refreshAssessments = useCallback(async () => {
+    try {
+      setAssessments(await listImageAssessments(t.activeId));
+    } catch {
+      setAssessments([]);
+    }
+  }, [t.activeId]);
 
   useEffect(() => {
     let alive = true;
@@ -70,6 +90,34 @@ function Workspace({ telemetry: t, spaceWeather: sw, page }: { telemetry: Teleme
     });
     return () => { alive = false; };
   }, [t.activeId]);
+
+  const reloadWellnessRef = useRef(wellness.reload);
+  reloadWellnessRef.current = wellness.reload;
+  const refreshAssessmentsRef = useRef(refreshAssessments);
+  refreshAssessmentsRef.current = refreshAssessments;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const legacyKey = 'biotelemetry:demo-trends-v1';
+    if (!window.localStorage?.getItem(legacyKey)) return;
+    void (async () => {
+      try {
+        const [allCheckins, allExams] = await Promise.all([
+          localDb.checkins.toArray(),
+          localDb.imagingAssessments.toArray(),
+        ]);
+        const legacyCheckinIds = allCheckins.filter(r => r.id.startsWith('demo-checkin-')).map(r => r.id);
+        const legacyExamIds = allExams.filter(a => a.id.startsWith('demo-exam-')).map(a => a.id);
+        if (legacyCheckinIds.length > 0) await localDb.checkins.bulkDelete(legacyCheckinIds);
+        if (legacyExamIds.length > 0) await localDb.imagingAssessments.bulkDelete(legacyExamIds);
+        window.localStorage.removeItem(legacyKey);
+        await reloadWellnessRef.current();
+        await refreshAssessmentsRef.current();
+      } catch {
+        // Non-blocking cleanup when IndexedDB is unavailable.
+      }
+    })();
+  }, []);
 
   async function toggleMission(id: string) {
     try { await wellness.toggleActivity(id, today); }
@@ -87,8 +135,7 @@ function Workspace({ telemetry: t, spaceWeather: sw, page }: { telemetry: Teleme
     return m ? Number(m[1]) : undefined;
   })();
 
-  const stormOverrideKp = ({ LIVE_DONKI: 0, M_FLARE_CME: 5.7, X_CLASS_SPE: 8.3, EXTREME_G5: 9.0 } as const)[t.simConfig.solarStorm] ?? 0;
-  const kpIndex = Math.max(sw.snapshot?.kp_current ?? parsedDatumKp ?? 2.3, stormOverrideKp);
+  const kpIndex = resolveSimulationKp(t.simConfig, sw.snapshot?.kp_current ?? parsedDatumKp ?? 2.3);
 
   const readiness = useMemo(
     () => evaluateMissionRoutines({
@@ -101,7 +148,6 @@ function Workspace({ telemetry: t, spaceWeather: sw, page }: { telemetry: Teleme
     [v, wellness.records, wellness.completions, assessments, kpIndex],
   );
 
-  const hydration = v.hydration_pct ?? 92;
   const wbc = v.wbc_k_ul ?? 6.2;
 
   function openSelfExam(examType: SelfExamType) {
@@ -149,6 +195,7 @@ function Workspace({ telemetry: t, spaceWeather: sw, page }: { telemetry: Teleme
               kpIndex={kpIndex}
               onOpenSelfExam={openSelfExam}
               onAskAi={system => {
+                setAiFocusOrgan(system.label);
                 setAiInitialQuestion(`Review my ${system.label.toLowerCase()} status (${system.primaryMetric}) under current mission conditions and list countermeasures.`);
                 window.location.hash = 'ai';
               }}
@@ -214,22 +261,22 @@ function Workspace({ telemetry: t, spaceWeather: sw, page }: { telemetry: Teleme
                 </span>
               </div>
               <div>
-                <Droplets size={19} />
+                <Activity size={19} />
                 <span>
-                  Hydration &amp; immune
+                  Immune leukocyte
                   <strong>
-                    {hydration}% <small>· WBC {wbc} K/uL</small>
+                    {wbc} <small>K/uL</small>
                   </strong>
+                  {wbc < 3.8 && <small className="warning-text">Suppressed (OSD-575)</small>}
                 </span>
               </div>
               <div>
                 <Radio size={19} />
                 <span>
-                  Radiation &amp; suit
+                  Suit &amp; comms link
                   <strong>
-                    {v.radiation_rate} <small>μSv/h · {v.battery_level ?? '—'}% bat</small>
+                    {v.battery_level ?? '—'}% <small>bat · {v.comms_latency_sec !== undefined ? (v.comms_latency_sec < 1 ? `${Math.round(v.comms_latency_sec * 1000)} ms` : v.comms_latency_sec < 60 ? `${v.comms_latency_sec.toFixed(1)} s` : `${(v.comms_latency_sec / 60).toFixed(1)} min`) : '—'} lag</small>
                   </strong>
-                  {v.radiation_rate >= 30 && <small className="warning-text">{v.radiation_rate >= 60 ? 'Critical flux' : 'Elevated flux'}</small>}
                 </span>
               </div>
             </div>
@@ -243,7 +290,13 @@ function Workspace({ telemetry: t, spaceWeather: sw, page }: { telemetry: Teleme
                 </div>
                 <div className="readiness-dashboard-meta">
                   <span><Flame size={14} aria-hidden="true" /> {readiness.streakDays}d streak</span>
-                  <span><Award size={14} aria-hidden="true" /> {readiness.xp} XP · {readiness.badges.filter(b => b.earned).length}/{readiness.badges.length} badges</span>
+                  <span><Award size={14} aria-hidden="true" /> {readiness.compliancePct}% compliance · {readiness.badges.filter(b => b.earned).length}/{readiness.badges.length} badges</span>
+                </div>
+                <div className="readiness-breakdown" aria-label="Readiness score breakdown">
+                  <span>Telemetry {readiness.readinessBreakdown.telemetry}</span>
+                  <span>Check-In {readiness.readinessBreakdown.checkIn}</span>
+                  <span>Protocols {readiness.readinessBreakdown.countermeasures}</span>
+                  <span>Ocular {readiness.readinessBreakdown.ocularExam}</span>
                 </div>
                 <div className={`routine-prompt-card priority-${readiness.nextPrompt.priority}`}>
                   <strong>{readiness.nextPrompt.title}</strong>
@@ -256,29 +309,46 @@ function Workspace({ telemetry: t, spaceWeather: sw, page }: { telemetry: Teleme
               </div>
               <div className="daily-panel-tasks">
                 {wellness.loading ? (
-                  <p role="status">Loading saved activity progress…</p>
+                  <p role="status">Loading saved protocol progress…</p>
                 ) : wellness.activitiesError ? (
-                  <p className="helper">Saved activity progress is unavailable. Please retry loading.</p>
+                  <p className="helper">Saved protocol progress is unavailable. Please retry loading.</p>
                 ) : (
-                  <MissionProgress completed={completed.length} />
+                  <MissionProgress completed={readiness.verifiedCount} total={readiness.totalProtocols} />
                 )}
                 <div className="mini-missions">
-                  {[missionCatalog[0], missionCatalog[3], missionCatalog[6]].map(mission => {
-                    const done = completed.some(item => item.missionId === mission.id);
+                  {readiness.topProtocols.map(item => {
+                    const isBusy = wellness.loading || wellness.activitySaving || !!wellness.activitiesError;
+                    const isAuto = item.status === 'auto-verified';
                     return (
                       <button
-                        key={mission.id}
-                        onClick={() => void toggleMission(mission.id)}
-                        disabled={wellness.loading || wellness.activitySaving || !!wellness.activitiesError}
-                        aria-pressed={done}
+                        key={item.mission.id}
+                        type="button"
+                        onClick={() => {
+                          if (item.canManualToggle) {
+                            void toggleMission(item.mission.id);
+                          } else if (item.targetExam) {
+                            openSelfExam(item.targetExam);
+                          } else {
+                            window.location.hash = item.targetPage ?? 'checkin';
+                          }
+                        }}
+                        disabled={item.canManualToggle && isBusy}
+                        aria-pressed={item.canManualToggle ? item.completed : undefined}
                       >
-                        {done ? <Check size={19} className="success-text" /> : <Circle size={19} />}
-                        <span>{mission.title}</span>
+                        {item.completed ? <Check size={19} className="success-text" /> : <Circle size={19} />}
+                        <span>{item.mission.title}</span>
+                        <small className="protocol-verified-pill">
+                          {isAuto
+                            ? 'Auto'
+                            : item.completed
+                              ? 'Confirmed'
+                              : item.actionLabel ?? 'Confirm'}
+                        </small>
                       </button>
                     );
                   })}
                 </div>
-                <a href="#missions" className="text-link">All activities &amp; badges<ArrowRight size={16} /></a>
+                <a href="#missions" className="text-link">All countermeasures &amp; compliance<ArrowRight size={16} /></a>
               </div>
             </div>
           </section>
@@ -325,7 +395,19 @@ function Workspace({ telemetry: t, spaceWeather: sw, page }: { telemetry: Teleme
           </details>
         </>
       )}
-      <div hidden={page !== 'checkin'}><CheckInPage astronautId={t.activeId} vitals={v} records={wellness.records} offline={t.offline} gateway={t.gateway} onSaved={wellness.acceptCheckIn} historyLoading={wellness.loading} historyError={wellness.recordsError} environment={environment.context} /></div>
+      {page === 'checkin' && (
+        <CheckInPage
+          astronautId={t.activeId}
+          vitals={v}
+          records={wellness.records}
+          offline={t.offline}
+          gateway={t.gateway}
+          onSaved={wellness.acceptCheckIn}
+          historyLoading={wellness.loading}
+          historyError={wellness.recordsError}
+          environment={environment.context}
+        />
+      )}
       {page === 'analytics' && (
         <AnalyticsPage
           records={wellness.records}
@@ -340,8 +422,33 @@ function Workspace({ telemetry: t, spaceWeather: sw, page }: { telemetry: Teleme
           recordsError={wellness.recordsError}
         />
       )}
-      {page === 'missions' && <MissionsPage checkedIn={!!todayRecord} astronautId={t.activeId} completions={wellness.completions} onToggle={wellness.toggleActivity} loading={wellness.loading} loadError={wellness.activitiesError} activitySaving={wellness.activitySaving} readiness={readiness} />}
-      <div hidden={page !== 'ai'}><AIPage context={buildAssistantContext(t.activeId, wellness.records, observations, wellness.completions, environment.context, v)} offline={t.offline} gateway={t.gateway} recordsLoading={wellness.loading || wellness.activitySaving} recordsError={wellness.error} initialQuestion={aiInitialQuestion} onClearInitialQuestion={clearInitialQuestion} /></div>
+      {page === 'missions' && (
+        <MissionsPage
+          checkedIn={!!todayRecord}
+          astronautId={t.activeId}
+          completions={wellness.completions}
+          onToggle={wellness.toggleActivity}
+          loading={wellness.loading}
+          loadError={wellness.activitiesError}
+          activitySaving={wellness.activitySaving}
+          readiness={readiness}
+          onOpenSelfExam={openSelfExam}
+          onNavigate={p => { window.location.hash = p; }}
+        />
+      )}
+      {page === 'ai' && (
+        <AIPage
+          context={buildAssistantContext(t.activeId, wellness.records, observations, wellness.completions, environment.context, v, assessments, readiness, aiFocusOrgan)}
+          offline={t.offline}
+          gateway={t.gateway}
+          recordsLoading={wellness.loading || wellness.activitySaving}
+          recordsError={wellness.error}
+          initialQuestion={aiInitialQuestion}
+          onClearInitialQuestion={clearInitialQuestion}
+          onOpenSelfExam={openSelfExam}
+          onNavigate={p => { window.location.hash = p; }}
+        />
+      )}
       {!astronaut && <EmptyState title="No astronaut selected">Choose a crew member from the header.</EmptyState>}
     </>
   );
@@ -353,6 +460,37 @@ export function App() {
   const [page, setPage] = useState<Page>(getPage);
   const [contrast, setContrast] = useState(false);
   const closeDiagnostic = useCallback(() => telemetry.setDiagnostic(null), [telemetry.setDiagnostic]);
+  const announcedAlertsRef = useRef(new Map<string, AlertEpisodeState>());
+  const crewNames = useMemo(
+    () => Object.fromEntries(telemetry.crew.map(member => [member.id, member.name])),
+    [telemetry.crew],
+  );
+
+  useEffect(() => {
+    telemetry.setLiveKp(spaceWeather.snapshot?.kp_current);
+  }, [spaceWeather.snapshot?.kp_current, telemetry.setLiveKp]);
+
+  useEffect(() => () => {
+    stopAlertSpeaking();
+    announcedAlertsRef.current.clear();
+  }, []);
+
+  // Announce alerts only for the selected crew profile while keeping async audio alive across route tabs.
+  useEffect(() => {
+    const profileAlerts = selectAlertsForProfile(telemetry.alerts, telemetry.activeId);
+    const newAlerts = selectNewlyTriggeredAlerts(profileAlerts, announcedAlertsRef.current);
+    const activeKeys = new Set(
+      profileAlerts
+        .filter(alert => !alert.acknowledged)
+        .map(alert => `${alert.astronaut_id}:${alert.alert_type}`),
+    );
+    syncActiveAlertSpeechKeys(activeKeys);
+    if (newAlerts.length === 0) return;
+    const announcements = buildAlertAnnouncementsByCrew(newAlerts, crewNames, telemetry.activeId);
+    for (const item of announcements) {
+      speakBackgroundAlert(item.text, { tag: item.astronautId, alertKeys: item.alertKeys });
+    }
+  }, [telemetry.alerts, telemetry.activeId, crewNames]);
 
   useEffect(() => {
     const navigate = () => { setPage(getPage()); window.scrollTo({ top: 0 }); };
@@ -371,18 +509,10 @@ export function App() {
       gateway={telemetry.gateway}
       los={telemetry.los}
       toggleLos={() => telemetry.setLos(!telemetry.los)}
-      pending={telemetry.pending}
-      syncing={telemetry.syncing}
-      sync={telemetry.sync}
       sound={telemetry.sound}
       toggleSound={() => telemetry.setSound(!telemetry.sound)}
       contrast={contrast}
       toggleContrast={() => setContrast(!contrast)}
-      bleStatus={telemetry.bleStatus}
-      bleDeviceName={telemetry.bleDeviceName}
-      bleError={telemetry.bleError}
-      connectBle={() => void telemetry.connectBle()}
-      disconnectBle={telemetry.disconnectBle}
     >
       {telemetry.error && <div role="alert" className="error-box global-message">{telemetry.error}<button onClick={() => telemetry.setError('')} aria-label="Dismiss error">Dismiss</button></div>}
       {telemetry.notice && <div role="status" className="warning-box">{telemetry.notice}</div>}

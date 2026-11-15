@@ -1,6 +1,6 @@
 import type { SelfExamType, VitalSigns } from '../types/telemetry';
 import type { CheckIn, MissionCompletion } from '../types/wellness';
-import { localDate } from './missions';
+import { localDate, normalizeMissionId } from './missions';
 
 export type BodySystemId =
   | 'neuro_ocular'
@@ -35,7 +35,9 @@ export function evaluateBodySystems(params: {
 }): BodyRegionAssessment[] {
   const { vitals, latestCheckIn, completions, kpIndex } = params;
   const today = localDate();
-  const todayCompleted = new Set(completions.filter(c => c.date === today).map(c => c.missionId));
+  const todayCompleted = new Set(completions.filter(c => c.date === today).map(c => normalizeMissionId(c.missionId)));
+  const todayCheckInExercise = latestCheckIn && localDate(new Date(latestCheckIn.createdAt)) === today ? latestCheckIn.exerciseMinutes : 0;
+  const aredDoneToday = todayCompleted.has('physical-ared') || todayCheckInExercise >= 30;
 
   const painLoc = (latestCheckIn?.spaceWellness?.pain?.location || latestCheckIn?.symptoms || '').toLowerCase();
   const painLevel = latestCheckIn?.spaceWellness?.pain?.intensity ?? 0;
@@ -72,7 +74,7 @@ export function evaluateBodySystems(params: {
         : 'nominal';
 
   // 5. Musculoskeletal (Bones & Muscles)
-  const boneRisk = (gravityG < 0.5 && missionDay >= 30 && !todayCompleted.has('physical-ared')) || (painLevel >= 2 && /back|leg|knee|spine|shoulder|muscle|joint/.test(painLoc));
+  const boneRisk = (gravityG < 0.5 && missionDay >= 30 && !aredDoneToday) || (painLevel >= 2 && /back|leg|knee|spine|shoulder|muscle|joint/.test(painLoc));
   const muscStatus: OrganStatus = painLevel >= 4 && /back|spine|joint|knee/.test(painLoc) ? 'critical' : boneRisk ? 'warning' : 'nominal';
 
   // 6. Dermal & Immune System

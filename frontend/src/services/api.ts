@@ -2,12 +2,12 @@ import { Astronaut, VitalSigns, AlertItem, DiagnosticResult } from '../types/tel
 import type { SimulationConfig } from './simulationConfig';
 
 export const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '');
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: RequestInit, timeoutMs = 8000): Promise<T> {
   if (typeof window === 'undefined' && API_BASE.startsWith('/')) {
     throw new Error('Relative API requests require a browser origin.');
   }
   const controller = new AbortController();
-  const timeout = globalThis.setTimeout(() => controller.abort(), 8000);
+  const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(`${API_BASE}${path}`, { ...init, signal: controller.signal, cache: 'no-store' });
     if (!response.ok) throw new Error(`Request failed (${response.status}). Please try again.`);
@@ -74,6 +74,13 @@ export const runDiagnostics = (astronautId: string, sim?: Partial<SimulationConf
 export const fetchTelemetryHistory = (astronautId: string, limit = 30) =>
   request<VitalSigns[]>(`/telemetry/history?astronaut_id=${encodeURIComponent(astronautId)}&limit=${limit}`);
 
+export interface AssistantApiAction {
+  label: string;
+  target_page: string;
+  target_exam?: string | null;
+  protocol_id?: string | null;
+}
+
 export interface AssistantApiResponse {
   summary: string;
   actions: string[];
@@ -81,10 +88,79 @@ export interface AssistantApiResponse {
   nasa_reference: string;
   source: string;
   model: string;
+  suggested_actions?: AssistantApiAction[];
+  sbar_text?: string | null;
 }
 
-export const askFlightAssistantApi = (question: string, context: Record<string, unknown>) =>
-  request<AssistantApiResponse>('/assistant/ask', post({ question, context }));
+export const askFlightAssistantApi = (
+  question: string,
+  context: Record<string, unknown>,
+  options?: { history?: { role: string; content: string }[]; mode?: string },
+) => request<AssistantApiResponse>('/assistant/ask', post({ question, context, ...options }), 12000);
+
+async function fetchWithSignal(
+  path: string,
+  init: RequestInit,
+  signal?: AbortSignal,
+  timeoutMs = 12000,
+): Promise<Response> {
+  if (typeof window === 'undefined' && API_BASE.startsWith('/')) {
+    throw new Error('Relative API requests require a browser origin.');
+  }
+  const controller = new AbortController();
+  let timedOut = false;
+  const onAbort = () => controller.abort();
+  if (signal) {
+    if (signal.aborted) controller.abort();
+    else signal.addEventListener('abort', onAbort, { once: true });
+  }
+  const timeout = globalThis.setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+  try {
+    return await fetch(`${API_BASE}${path}`, {
+      ...init,
+      signal: controller.signal,
+      cache: 'no-store',
+    });
+  } catch (cause) {
+    if (timedOut && !signal?.aborted) {
+      throw new Error('Request timed out before audio synthesis completed.');
+    }
+    throw cause;
+  } finally {
+    globalThis.clearTimeout(timeout);
+    signal?.removeEventListener('abort', onAbort);
+  }
+}
+
+export async function synthesizeAssistantSpeechApi(
+  text: string,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  const response = await fetchWithSignal('/assistant/tts', post({ text }), signal, 25000);
+  if (!response.ok) {
+    throw new Error(`Speech synthesis failed (${response.status}).`);
+  }
+  return await response.blob();
+}
+
+export async function transcribeSpeechAudioApi(
+  audioBase64: string,
+  mimeType: string,
+  signal?: AbortSignal,
+): Promise<{ transcript: string; source: string; model: string }> {
+  const response = await fetchWithSignal(
+    '/assistant/transcribe',
+    post({ audio_base64: audioBase64, mime_type: mimeType }),
+    signal,
+  );
+  if (!response.ok) {
+    throw new Error(`Speech transcription failed (${response.status}).`);
+  }
+  return await response.json() as { transcript: string; source: string; model: string };
+}
 
 export interface ImageAnalysisApiResponse {
   exam_type: string;
@@ -97,10 +173,54 @@ export interface ImageAnalysisApiResponse {
 }
 
 export const analyzeSelfExamImageApi = (payload: Record<string, unknown>) =>
-  request<ImageAnalysisApiResponse>('/diagnostics/analyze-image', post(payload));
+  request<ImageAnalysisApiResponse>('/diagnostics/analyze-image', post(payload), 12000);
 
 export const syncCheckInRemote = (payload: Record<string, unknown>) =>
   request<{ persisted: boolean; client_id: string }>('/wellness/checkins', post(payload));
 
 export const syncAssessmentRemote = (payload: Record<string, unknown>) =>
   request<{ persisted: boolean; client_id: string }>('/wellness/assessments', post(payload));
+
+export interface RemoteCheckInRow {
+  id?: string;
+  client_id?: string | null;
+  astronaut_id: string;
+  recorded_at: string;
+  mood?: number | null;
+  energy?: number | null;
+  stress?: number | null;
+  sleep_hours?: number | null;
+  pain_level?: number | null;
+  blood_glucose_mg_dl?: number | null;
+  hydration_ml?: number | null;
+  nutrition_quality?: string | null;
+  immune_symptoms?: string[] | null;
+  metrics?: Record<string, unknown> | null;
+}
+
+export interface RemoteAssessmentRow {
+  id?: string;
+  client_id?: string | null;
+  astronaut_id: string;
+  exam_type: string;
+  recorded_at: string;
+  severity: string;
+  findings: string;
+  recommended_actions?: string[] | null;
+  ground_consult_required?: boolean | null;
+  analysis_source?: string | null;
+  thumbnail_data_url?: string | null;
+}
+
+export function isOnlineHttpBrowser(): boolean {
+  if (typeof window === 'undefined') return false;
+  const origin = window.location?.origin;
+  if (typeof origin !== 'string' || !/^https?:/.test(origin)) return false;
+  return typeof navigator === 'undefined' || navigator.onLine !== false;
+}
+
+export const fetchCheckInsRemote = (astronautId: string, limit = 60) =>
+  request<{ records: RemoteCheckInRow[] }>(`/wellness/checkins/${encodeURIComponent(astronautId)}?limit=${limit}`);
+
+export const fetchAssessmentsRemote = (astronautId: string, limit = 40) =>
+  request<{ records: RemoteAssessmentRow[] }>(`/wellness/assessments/${encodeURIComponent(astronautId)}?limit=${limit}`);

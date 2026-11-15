@@ -23,11 +23,11 @@ const STATUS_LABELS: Record<OrganStatus, string> = {
 };
 
 const REGION_VIEW_ANGLES: Record<BodySystemId, { azimuthDeg: number; targetY: number }> = {
-  neuro_ocular: { azimuthDeg: 14, targetY: 0.22 },
-  cardiovascular: { azimuthDeg: 18, targetY: 0.08 },
-  respiratory: { azimuthDeg: -18, targetY: 0.10 },
+  neuro_ocular: { azimuthDeg: 14, targetY: 0.14 },
+  cardiovascular: { azimuthDeg: 18, targetY: 0.06 },
+  respiratory: { azimuthDeg: -18, targetY: 0.08 },
   metabolic: { azimuthDeg: 14, targetY: 0.02 },
-  musculoskeletal: { azimuthDeg: 148, targetY: -0.10 },
+  musculoskeletal: { azimuthDeg: 148, targetY: -0.06 },
   dermal_immune: { azimuthDeg: -42, targetY: 0.02 },
 };
 
