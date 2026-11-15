@@ -1,6 +1,37 @@
 ﻿# BioTelemetry frontend handoff
 
-Latest space-wellness pass: [Optional fields, environment provenance, 40-test results and manual QA](SPACE_WELLNESS_QA.md). New fields are versioned local-demo extensions; [backend review proposal](docs/SPACE_WELLNESS_BACKEND_PROPOSAL.md). Older implementation reports below remain architectural history.
+The main [project README](../README.md) explains the current concept, features, demo flow, data sources, setup, storage, and prototype boundaries.
+
+Scroll-entry pass: cards, panels, table containers, charts, history entries, and environment readings fade in with a 12px rise over 380ms when entering view. Each mounted element reveals once; new dialog content and expanded sections are observed. Content stays visible without observer/animation support, keyboard focus bypasses the effect, and reduced motion cancels active reveals. Build and all 56 regression tests pass; browser checks covered scroll entry, no repeat, modal tables, expanded cards, keyboard access, reduced motion, and mobile overflow.
+
+Welcome preference verification: build and all 56 regression tests pass. An isolated browser confirmed repeated refresh without opt-out, suppression only after checking Don’t show again, manual replay with the saved value, unchecking to restore refresh welcomes, ignoring legacy completion flags, mobile fit, and visible feedback when storage writes fail.
+
+Latest introduction pass: welcome after every refresh unless explicitly disabled with Don’t show again, with a five-step, user-paced spotlight tour of the real check-in, focus card, demo, navigation, and crew controls. How it works and the sidebar card replay it. Skip, Back, Escape, Finish on Home, and Start my check-in provide explicit exits. The versioned `biotelemetry:onboarding:v2` preference stores only the explicit checkbox value; older completion flags do not suppress the welcome; blocked storage never prevents use. Presentation scenarios and personal records are untouched. Placement responds to target, card, scroll, and viewport changes and selects visible desktop or mobile navigation.
+
+Introduction verification: production build and 56 regression tests passed. An isolated browser verified the welcome flow, completion to Check-In, skip/replay/back, focus containment, Escape dismissal, unchanged personal records, and all five spotlight steps at 320/390/768/1440px. Production checks also verified reduced motion, offline replay after caching, and continued use when preference writes fail. Counts below refer to earlier passes.
+
+Latest interface pass: the dashboard uses compact focus cards with decorative traces of actual displayed data, a research field note, and accessible native detail dialogs. Card entry/hover feedback, page and disclosure transitions, and dialog entrance/exit motion respect reduced-motion preferences. A shared modal also serves diagnostics and the new How it works guide. Dialogs contain Tab/Shift-Tab, support Escape and backdrop dismissal, lock background scrolling, and restore focus. Native dismissal is synchronized with controlled state to prevent a delayed close from affecting a later dialog. No new dependencies were installed.
+
+Interface verification: production build and 52 regression tests passed. An isolated browser verified all four dialogs within page/content/viewport bounds at 320/390/768/1024/1440px, keyboard containment and focus return, backdrop dismissal, reduced motion, vision saves, and the three-step check-in. Earlier verification counts below describe previous passes.
+
+The dashboard now leads with a space-health companion: historical DONKI replay, a per-astronaut vision observation log, seven-day exercise records, and recovery observations. Each focus opens personal observations alongside NASA research links, species labels, descriptive study comparisons, and evidence limits. The four original vital cards remain under **Simulated measurements**.
+
+For presentations, select **Start demo** in the companion panel. Choose Steady week, Demanding week, or Recovery week, then move the day slider from 1 to 7. The sample check-ins and vision observations are deterministic, fictional, and never saved or merged with personal history. The comparison shows descriptive changes from demo day 1; it does not estimate disease risk. NASA study comparisons and historical weather retain their original sources. **Exit demo** restores personal records; other app pages always use saved records. Navigation away from Home or changing astronaut ends this temporary demo.
+
+Demo verification: production build and all 49 regression tests passed. An isolated browser verified scenario/day changes, the absence of personal write controls in demo vision, original values after exiting, and no change to saved check-ins, activities, or localStorage. Demo controls had no page overflow at 320/390/768/1440px.
+
+Research is bundled in `src/data/researchSnapshot.json` for offline use after the production PWA has been cached. The generator reads the checked-in `backend/data` CSV exports, retains source fingerprints and computes group means without individual clinical predictions. It does not require a backend connection. Verify or regenerate the bundle from the repository root:
+
+```sh
+python frontend/scripts/build-research-snapshot.py --check
+python frontend/scripts/build-research-snapshot.py
+```
+
+DONKI replay covers the local snapshot; it is neither a live feed nor an EVA safety recommendation. Missing Kp entries remain unknown. OSD-583 eye-pressure comparisons are mouse data; OSD-608 bone-density comparisons are rat data. OSD-569 human blood-cell comparisons are separate research context and cannot explain a user's sleep, mood, or immune status. Vision observations are self-reports in versioned browser storage, isolated by astronaut, and are never sent to the API. Corrupt or inaccessible histories disable saving without overwriting existing data.
+
+Companion verification: production build and 46 regression tests passed. An isolated Chrome session verified real check-in/vision saves, astronaut isolation, reload persistence, all four evidence panels without page overflow at 320/390/768/1024/1440px, and production offline reload with research access and new vision saves. These checks do not establish medical validity or complete accessibility certification.
+
+Previous space-wellness pass: [Optional fields, environment provenance, 40-test results and manual QA](SPACE_WELLNESS_QA.md). New fields are versioned local-demo extensions; [backend review proposal](docs/SPACE_WELLNESS_BACKEND_PROPOSAL.md). Older implementation reports below remain architectural history.
 
 Latest reliability pass: [Draft recovery, shared state, AI scoping and manual QA](RELIABILITY_QA.md). TypeScript, production build and 29 tests pass. Drafts now persist locally; earlier in-memory-draft limitations below are superseded.
 

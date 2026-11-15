@@ -11,7 +11,7 @@ const ts = require('typescript');
 for (const extension of ['.ts', '.tsx']) {
   require.extensions[extension] = (module, filename) => {
     const result = ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: {
-      module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX,
+      module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true,
     }, fileName: filename });
     module._compile(result.outputText, filename);
   };
@@ -54,6 +54,14 @@ const { SpaceWellnessTrends, SleepScheduleChart } = require('../src/components/S
 const { buildAssistantContext } = require('../src/services/ai.ts');
 const { AIPage } = require('../src/pages/AIPage.tsx');
 const { recommendedActivities } = require('../src/pages/MissionsPage.tsx');
+const { companionSummary, decodeWeather, weatherSummary, loadVisionObservations, saveVisionObservation } = require('../src/services/companion.ts');
+const { CompanionDashboard, CompanionEvidence, StudyComparison, WeatherReplay, CompanionDemoControls } = require('../src/components/CompanionDashboard.tsx');
+const { buildCompanionDemo, companionScenarios } = require('../src/services/companionDemo.ts');
+const { Modal } = require('../src/components/Modal.tsx');
+const { CardTrend } = require('../src/components/CardTrend.tsx');
+const { isWelcomeHidden, saveWelcomePreference, onboardingKey, placeTourCard, tourSteps } = require('../src/services/onboarding.ts');
+const { WelcomeTour } = require('../src/components/WelcomeTour.tsx');
+const researchSnapshot = require('../src/data/researchSnapshot.json');
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
 const sample = (overrides = {}) => ({ id: 'record-1', astronautId: 'A', createdAt: '2026-11-14T09:00:00Z', sleepHours: 7.5, sleepQuality: 4, fatigue: 2, stress: 3, mood: 'Good', exerciseMinutes: 30, symptoms: '', notes: '', biometrics: null, syncStatus: 'pending', ...overrides });
@@ -405,4 +413,183 @@ test('assistant never infers personal dose or live space weather from environmen
   assert.match((await demoAssistant.ask('Space weather?', context)).facts, /unavailable/);
   assert.match((await demoAssistant.ask('Cabin oxygen?', context)).facts, /No cabin oxygen/);
   assert.match((await demoAssistant.ask('Radiation?', buildAssistantContext('B', [], [], [], environment))).facts, /No environment context/);
+});
+
+test('companion summaries isolate crew, exclude future entries, and count the latest entry per calendar day', () => {
+  const now = new Date(2026, 10, 15, 12);
+  const at = (day, hour, overrides = {}) => sample({ id: `r-${day}-${hour}`, createdAt: new Date(2026, 10, day, hour).toISOString(), ...overrides });
+  const records = [at(15, 9, { exerciseMinutes: 30, sleepHours: 8 }), at(15, 8, { exerciseMinutes: 60, sleepHours: 6 }), at(14, 9, { exerciseMinutes: 0, sleepHours: 7 }), at(9, 0, { exerciseMinutes: 20 }), at(8, 23, { exerciseMinutes: 999 }), at(15, 13, { exerciseMinutes: 999 }), at(15, 10, { astronautId: 'B', exerciseMinutes: 999 }), sample({ createdAt: 'invalid' })];
+  const summary = companionSummary('A', records, now);
+  assert.equal(summary.coverage, 3); assert.equal(summary.exerciseMinutes, 50); assert.equal(summary.exerciseDays, 2);
+  assert.equal(summary.latest.sleepHours, 8); assert.equal(summary.previous.sleepHours, 6); assert.equal(summary.sleepChange, 2);
+  assert.equal(summary.sleepAverage, 7.5); assert.equal(companionSummary('C', records, now).sleepAverage, null);
+});
+
+test('vision observations persist separately per astronaut and retain explicit no-change and unsure responses', () => {
+  const storage = memoryStorage();
+  const first = saveVisionObservation('A', 'no-change', storage, new Date('2026-11-15T01:00Z'));
+  saveVisionObservation('A', 'unsure', storage, new Date('2026-11-15T02:00Z'));
+  saveVisionObservation('B', 'change', storage, new Date('2026-11-15T03:00Z'));
+  assert.equal(first[0].status, 'no-change');
+  assert.deepEqual(loadVisionObservations('A', storage).map(x => x.status), ['unsure', 'no-change']);
+  assert.equal(loadVisionObservations('B', storage).length, 1); assert.deepEqual(loadVisionObservations('C', storage), []);
+  assert.throws(() => saveVisionObservation('A', 'healthy', storage), /Choose a vision observation/);
+});
+
+test('vision storage failures and malformed histories preserve existing data', () => {
+  const storage = memoryStorage(); saveVisionObservation('A', 'change', storage);
+  const before = [...storage.data.entries()];
+  assert.throws(() => saveVisionObservation('A', 'unsure', { getItem: storage.getItem, setItem() { throw new Error('Quota'); } }), /Quota/);
+  assert.deepEqual([...storage.data.entries()], before);
+  const key = [...storage.data.keys()][0]; storage.setItem(key, '{broken');
+  assert.throws(() => loadVisionObservations('A', storage)); assert.throws(() => saveVisionObservation('A', 'unsure', storage));
+  assert.equal(storage.getItem(key), '{broken');
+  storage.setItem(key, JSON.stringify([{ ...JSON.parse(before[0][1])[0], astronautId: 'B' }]));
+  assert.throws(() => loadVisionObservations('A', storage), /Existing data was retained/);
+});
+
+test('historical replay preserves missing Kp and does not declare an empty catalog day safe', () => {
+  const empty = decodeWeather([['2026-11-14', 0, 0, 0, 0, null]])[0];
+  assert.equal(empty.maxKp, null); assert.equal(weatherSummary(empty), 'No catalog entries');
+  const html = renderToStaticMarkup(React.createElement(WeatherReplay, { day: empty, onSelect() {} }));
+  assert.match(html, /No entry/); assert.match(html, /Missing entries do not establish quiet or safe conditions/);
+  assert.doesNotMatch(html, /SAFE|NORMAL|Live feed/);
+  const max = decodeWeather(researchSnapshot.weather.days).find(x => x.date === '2024-05-11');
+  assert.equal(max.maxKp, 9); assert.equal(max.flares, 13); assert.equal(max.sep, 2);
+});
+
+test('research comparisons expose species and per-group sample counts without assigning study values to crew', () => {
+  for (const [study, species, unit] of [[researchSnapshot.vision, 'Mice', 'mmHg'], [researchSnapshot.bone, 'Rats', '%'], [researchSnapshot.blood, 'Humans', '10³ cells/µL']]) {
+    const html = renderToStaticMarkup(React.createElement(StudyComparison, { study, species, unit, title: 'Research comparison', explanation: 'Context only' }));
+    assert.match(html, new RegExp(species)); assert.match(html, /Sample IDs/); assert.match(html, /no significance test or individual prediction/);
+    assert.ok(html.includes(`https://osdr.nasa.gov/bio/repo/data/studies/${study.study}`));
+    for (const group of study.groups) assert.ok(html.includes(group.mean.toFixed(2)));
+  }
+  assert.deepEqual(researchSnapshot.vision.groups.map(x => x.n), [20, 20]);
+  assert.deepEqual(researchSnapshot.bone.groups.map(x => x.n), [13, 12, 10]);
+  assert.deepEqual(researchSnapshot.blood.groups.map(x => x.n), [4, 4]);
+});
+
+test('companion evidence has honest empty, unavailable, species, and zero-pain states', () => {
+  const base = { summary: companionSummary('A', []), day: decodeWeather(researchSnapshot.weather.days)[0], onSelectDate() {}, observations: [], visionLoading: false, visionError: '', saveVision() {}, recordsLoading: false, recordsError: '' };
+  const recovery = renderToStaticMarkup(React.createElement(CompanionEvidence, { ...base, topic: 'recovery' }));
+  assert.match(recovery, /No check-ins saved yet/); assert.match(recovery, /These blood tests do not measure sleep or mood/); assert.match(recovery, /No readiness score/);
+  const error = renderToStaticMarkup(React.createElement(CompanionEvidence, { ...base, topic: 'movement', recordsError: 'Storage unavailable' }));
+  assert.match(error, /Saved check-ins are unavailable/);
+  const summary = companionSummary('A', [sample({ createdAt: new Date().toISOString(), spaceWellness: { version: 1, mode: 'local-demo', pain: { intensity: 0 } } })]);
+  const movement = renderToStaticMarkup(React.createElement(CompanionEvidence, { ...base, topic: 'movement', summary }));
+  assert.match(movement, /0\/10/); assert.match(movement, /Rats/); assert.match(movement, /Unrecorded days are unknown/);
+  const vision = renderToStaticMarkup(React.createElement(CompanionEvidence, { ...base, topic: 'vision', visionError: 'Storage unavailable' }));
+  assert.match(vision, /Save vision observation/); assert.match(vision, /disabled/); assert.match(vision, /Mice/);
+  const dashboard = renderToStaticMarkup(React.createElement(CompanionDashboard, { astronautId: 'A', records: [], loading: false, error: '' }));
+  assert.match(dashboard, /Your space-health companion/); assert.match(dashboard, /bundled offline/); assert.match(dashboard, /Research provenance and limits/);
+});
+
+test('demo scenarios are deterministic, scoped to crew and valid across all seven days without future entries', () => {
+  const now = new Date(2026, 10, 15, 12);
+  for (const scenario of companionScenarios) for (let day = 1; day <= 7; day++) {
+    const demo = buildCompanionDemo('A', scenario.id, day, now);
+    assert.deepEqual(demo, buildCompanionDemo('A', scenario.id, day, now));
+    assert.equal(demo.records.length, day); assert.equal(demo.vision.length, day);
+    assert.equal(companionSummary('A', demo.records, now).coverage, day);
+    for (const record of demo.records) { assert.equal(validateCheckIn(record), null); assert.equal(record.astronautId, 'A'); assert.ok(new Date(record.createdAt) <= now); assert.equal(record.biometrics, null); }
+    assert.equal(companionSummary('B', demo.records, now).coverage, 0);
+    assert.ok(buildCompanionDemo('B', scenario.id, day, now).records.every(r => r.astronautId === 'B'));
+  }
+  for (const day of [0, 8, 1.5, NaN]) assert.throws(() => buildCompanionDemo('A', 'steady', day, now));
+  assert.throws(() => buildCompanionDemo('A', 'unknown', 7, now));
+});
+
+test('demo day progression produces descriptive changes while leaving saved records untouched', async () => {
+  await checkins.save(sample()); const before = await checkins.list('A');
+  const now = new Date(2026, 10, 15, 12);
+  const start = buildCompanionDemo('A', 'demanding', 1, now), end = buildCompanionDemo('A', 'demanding', 7, now);
+  assert.equal(start.vision[0].status, 'no-change'); assert.equal(end.vision[0].status, 'change');
+  assert.equal(end.sleepChangeFromStart, -2.5); assert.equal(end.fatigueChangeFromStart, 3);
+  assert.equal(companionSummary('A', end.records, now).exerciseMinutes, 140);
+  const recovery = buildCompanionDemo('A', 'recovery', 7, now);
+  assert.equal(recovery.sleepChangeFromStart, 2.5); assert.equal(recovery.fatigueChangeFromStart, -3);
+  assert.deepEqual(await checkins.list('A'), before);
+});
+
+test('demo UI labels fictional entries, exposes day controls and removes personal write actions', () => {
+  const model = buildCompanionDemo('A', 'demanding', 7);
+  const controls = renderToStaticMarkup(React.createElement(CompanionDemoControls, { active: true, scenario: 'demanding', day: 7, model, onStart() {}, onExit() {}, onScenario() {}, onDay() {} }));
+  assert.match(controls, /Exit demo/); assert.match(controls, /Demo day 7 of 7/); assert.match(controls, /No demo entries are saved/); assert.match(controls, /not medical estimates or forecasts/);
+  for (const topic of ['vision', 'movement', 'recovery']) {
+    const html = renderToStaticMarkup(React.createElement(CompanionEvidence, { topic, demo: true, summary: companionSummary('A', model.records), day: decodeWeather(researchSnapshot.weather.days)[0], onSelectDate() {}, observations: model.vision, visionLoading: false, visionError: '', saveVision() { throw new Error('Must not write'); }, recordsLoading: false, recordsError: '' }));
+    assert.match(html, /SYNTHETIC DEMO/);
+    assert.doesNotMatch(html, /Save vision observation|Record a daily check-in/);
+    if (topic === 'vision') { assert.match(html, /Change noticed/); assert.match(html, /Demo vision history/); }
+  }
+});
+
+test('detail dialogs are named and leave private form content unmounted while closed', () => {
+  const props = { title: 'Vision details', description: 'Your observations and the research.', onClose() {} };
+  const closed = renderToStaticMarkup(React.createElement(Modal, { ...props, open: false }, 'PRIVATE CONTENT'));
+  assert.match(closed, /<dialog/); assert.match(closed, /aria-labelledby=/); assert.match(closed, /aria-describedby=/);
+  assert.doesNotMatch(closed, /PRIVATE CONTENT/);
+  const opened = renderToStaticMarkup(React.createElement(Modal, { ...props, open: true }, 'PRIVATE CONTENT'));
+  assert.match(opened, /PRIVATE CONTENT/); assert.match(opened, /Close Vision details/); assert.match(opened, /Escape/);
+});
+
+test('card traces preserve honest empty states and render flat series without invalid coordinates', () => {
+  for (const values of [[], [8]]) {
+    const html = renderToStaticMarkup(React.createElement(CardTrend, { values }));
+    assert.doesNotMatch(html, /<svg|<path/); assert.match(html, /aria-hidden="true"/);
+  }
+  for (const values of [[8, 8, 8], [5, 7, 6], [0, 0, 0]]) {
+    const html = renderToStaticMarkup(React.createElement(CardTrend, { values }));
+    assert.match(html, /<svg/); assert.doesNotMatch(html, /NaN|Infinity/); assert.match(html, /aria-hidden="true"/);
+  }
+});
+
+test('companion cards expose detail dialogs and keep the dashboard compact before interaction', () => {
+  const html = renderToStaticMarkup(React.createElement(CompanionDashboard, { astronautId: 'A', records: [], loading: false, error: '' }));
+  assert.equal((html.match(/aria-haspopup="dialog"/g) || []).length, 5);
+  assert.match(html, /RESEARCH FIELD NOTES/); assert.match(html, /View details/);
+  assert.doesNotMatch(html, /class="evidence-grid"|class="vision-form"/);
+});
+
+test('welcome appears by default and only explicit opt-out suppresses it without changing health records', () => {
+  const storage = memoryStorage(); storage.setItem('personal-records', 'KEEP');
+  storage.setItem('biotelemetry:onboarding:v1', JSON.stringify({ version: 1, outcome: 'completed' }));
+  assert.equal(isWelcomeHidden(storage), false);
+  assert.equal(saveWelcomePreference(storage, true), true);
+  assert.equal(isWelcomeHidden(storage), true);
+  assert.deepEqual(JSON.parse(storage.getItem(onboardingKey)), { version: 2, dontShowAgain: true });
+  assert.equal(saveWelcomePreference(storage, false), true);
+  assert.equal(isWelcomeHidden(storage), false);
+  assert.equal(storage.getItem('personal-records'), 'KEEP');
+  for (const invalid of ['{broken', 'null', JSON.stringify({ version: 99, dontShowAgain: true }), JSON.stringify({ version: 2, dontShowAgain: 'true' }), JSON.stringify({ version: 1, outcome: 'completed' })]) {
+    storage.setItem(onboardingKey, invalid); assert.equal(isWelcomeHidden(storage), false); assert.equal(storage.getItem(onboardingKey), invalid);
+  }
+});
+
+test('blocked welcome preferences never prevent the introduction from being used', () => {
+  assert.equal(isWelcomeHidden({ getItem() { throw new Error('Blocked'); } }), false);
+  assert.equal(saveWelcomePreference({ setItem() { throw new Error('Quota'); } }, true), false);
+});
+
+test('tour card placement fits phone and desktop viewports including bottom navigation and missing targets', () => {
+  for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 768, height: 900 }, { width: 1440, height: 900 }]) {
+    const targets = [null, { left: 10, top: 15, width: 200, height: 44 }, { left: 0, top: viewport.height - 70, width: viewport.width, height: 70 }, { left: viewport.width - 150, top: 50, width: 140, height: 44 }];
+    for (const target of targets) {
+      const placed = placeTourCard(target, viewport, 330);
+      assert.ok(placed.left >= 0); assert.ok(placed.top >= 0);
+      assert.ok(placed.left + placed.width <= viewport.width);
+      assert.ok(placed.top + 330 <= viewport.height);
+    }
+  }
+  const bottom = placeTourCard({ left: 0, top: 760, width: 390, height: 70 }, { width: 390, height: 844 }, 330);
+  assert.equal(bottom.placement, 'above');
+});
+
+test('welcome offers a guided introduction or skip without rendering hidden tour content', () => {
+  const html = renderToStaticMarkup(React.createElement(WelcomeTour, { open: true, onClose() {} }));
+  assert.match(html, /Welcome to BioTelemetry/); assert.match(html, /Show me around/); assert.match(html, /Explore on my own/);
+  assert.match(html, /show again/); assert.match(html, /type="checkbox"/); assert.doesNotMatch(html, /checked=""/);
+  assert.match(html, /5 short stops/); assert.doesNotMatch(html, /class="tour-card"/);
+  assert.equal(tourSteps[0].id, 'checkin'); assert.equal(tourSteps[tourSteps.length - 1].id, 'crew');
+  assert.equal(new Set(tourSteps.map(step => step.id)).size, tourSteps.length);
 });
