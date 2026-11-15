@@ -1,4 +1,4 @@
-﻿/* Run with: node --test tests/frontend.test.cjs
+/* Run with: node --test tests/frontend.test.cjs
  * TypeScript is compiled in memory. Storage-boundary tests use a strict table
  * adapter; actual IndexedDB migration and service-worker lifecycle need a browser.
  */
@@ -10,7 +10,8 @@ const Module = require('node:module');
 const ts = require('typescript');
 for (const extension of ['.ts', '.tsx']) {
   require.extensions[extension] = (module, filename) => {
-    const result = ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: {
+    const source = fs.readFileSync(filename, 'utf8').replace(/\bimport\.meta\.env\b/g, '({})');
+    const result = ts.transpileModule(source, { compilerOptions: {
       module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX,
     }, fileName: filename });
     module._compile(result.outputText, filename);
@@ -19,6 +20,7 @@ for (const extension of ['.ts', '.tsx']) {
 class TableAdapter {
   constructor(key) { this.key = key; this.data = new Map(); this.failure = false; }
   async add(record) { if (this.failure) throw new Error('Storage unavailable'); if (this.data.has(record[this.key])) throw new Error('Duplicate'); this.data.set(record[this.key], structuredClone(record)); }
+  async put(record) { if (this.failure) throw new Error('Storage unavailable'); this.data.set(record[this.key], structuredClone(record)); }
   async get(key) { return structuredClone(this.data.get(key)); }
   async delete(key) { this.data.delete(key); }
   async bulkDelete(keys) { keys.forEach(key => this.data.delete(key)); }
@@ -30,7 +32,7 @@ class TableAdapter {
     return collection;
   } }; }
 }
-const db = { checkins: new TableAdapter('id'), missionCompletions: new TableAdapter('key'), vitalsQueue: new TableAdapter('localId'), transaction: async (_mode, _table, work) => work() };
+const db = { checkins: new TableAdapter('id'), missionCompletions: new TableAdapter('key'), vitalsQueue: new TableAdapter('localId'), imagingAssessments: new TableAdapter('id'), transaction: async (_mode, _table, work) => work() };
 const loadOriginal = Module._load;
 Module._load = function(request, parent, isMain) {
   if (request === '../db/localDb') return { localDb: db };
@@ -54,10 +56,22 @@ const { SpaceWellnessTrends, SleepScheduleChart } = require('../src/components/S
 const { buildAssistantContext } = require('../src/services/ai.ts');
 const { AIPage } = require('../src/pages/AIPage.tsx');
 const { recommendedActivities } = require('../src/pages/MissionsPage.tsx');
+const { parseHeartRateMeasurement } = require('../src/services/bluetoothHr.ts');
+const { parseSolarLocation, toSpaceWeatherDatum, saveSpaceWeatherCache, loadSpaceWeatherCache, mergeRealtimeSpaceWeatherEvent } = require('../src/services/spaceWeather.ts');
+const { SpaceWeatherVisualizer, formatEtaCountdown } = require('../src/components/SpaceWeatherVisualizer.tsx');
+const { AlertBanner } = require('../src/components/AlertBanner.tsx');
+const { AnomalyDemoBar } = require('../src/components/AnomalyDemoBar.tsx');
+const { DiagnosticsModal } = require('../src/components/DiagnosticsModal.tsx');
+const {
+  computeSpaceEnvironmentRisks,
+  defaultSimulationConfig,
+  evaluateLocalAlerts,
+} = require('../src/services/simulationConfig.ts');
+const { buildPropagatedIssFeed, parseEnlilFrameLabel } = require('../src/services/spaceWeather.ts');
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
 const sample = (overrides = {}) => ({ id: 'record-1', astronautId: 'A', createdAt: '2026-11-14T09:00:00Z', sleepHours: 7.5, sleepQuality: 4, fatigue: 2, stress: 3, mood: 'Good', exerciseMinutes: 30, symptoms: '', notes: '', biometrics: null, syncStatus: 'pending', ...overrides });
-beforeEach(() => { delete globalThis.window; for (const table of [db.checkins, db.missionCompletions, db.vitalsQueue]) { table.data.clear(); table.failure = false; } Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } }); });
+beforeEach(() => { delete globalThis.window; for (const table of [db.checkins, db.missionCompletions, db.vitalsQueue, db.imagingAssessments]) { table.data.clear(); table.failure = false; } Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } }); });
 
 test('check-in validation rejects invalid values, mood, and excessive text', () => {
   assert.equal(validateCheckIn(sample()), null);
@@ -405,4 +419,498 @@ test('assistant never infers personal dose or live space weather from environmen
   assert.match((await demoAssistant.ask('Space weather?', context)).facts, /unavailable/);
   assert.match((await demoAssistant.ask('Cabin oxygen?', context)).facts, /No cabin oxygen/);
   assert.match((await demoAssistant.ask('Radiation?', buildAssistantContext('B', [], [], [], environment))).facts, /No environment context/);
+});
+test('bluetooth heart-rate parser decodes 8-bit/16-bit HR, RR-intervals, and rejects malformed packets', () => {
+  const buf8 = new DataView(new Uint8Array([0x10, 72, 0x00, 0x04, 0x20, 0x04]).buffer);
+  const parsed8 = parseHeartRateMeasurement(buf8);
+  assert.equal(parsed8.heartRate, 72);
+  assert.equal(parsed8.rrIntervalsMs.length, 2);
+  assert.ok(parsed8.rmssdMs > 0);
+
+  const buf16 = new DataView(new Uint8Array([0x09, 0x84, 0x00, 0x0a, 0x00]).buffer);
+  const parsed16 = parseHeartRateMeasurement(buf16);
+  assert.equal(parsed16.heartRate, 132);
+
+  assert.equal(parseHeartRateMeasurement(new DataView(new Uint8Array([0x00]).buffer)), null);
+  assert.equal(parseHeartRateMeasurement(new DataView(new Uint8Array([0x00, 12]).buffer)), null);
+});
+test('space weather service parses heliographic coordinates, caches offline snapshots, and preserves provenance', async () => {
+  const pt = parseSolarLocation('N32E90');
+  assert.ok(pt && pt.x < 0 && pt.y < 0);
+  assert.equal(parseSolarLocation('INVALID'), null);
+  assert.equal(parseSolarLocation(''), null);
+
+  const sampleSnapshot = {
+    kp_current: 5.0,
+    storm_level: 'G1_MINOR',
+    radiation_storm: 'S0_NONE',
+    latest_flare_class: 'M2.1',
+    latest_flare_location: 'N32E90',
+    active_sep: false,
+    earth_impact_eta: '2099-01-01T12:00:00Z',
+    summary: 'Geomagnetic G1 MINOR (Kp 5.0); latest flare M2.1',
+    source_mode: 'live_nasa',
+    fetched_at: '2026-11-14T18:00:00Z',
+    events: [{
+      event_id: 'FLR-1', event_type: 'FLR', event_time: '2026-11-14T17:30:00Z',
+      severity: 'MODERATE', summary: 'Solar flare M2.1', flare_class: 'M2.1', source_location: 'N32E90',
+    }],
+  };
+
+  const storage = memoryStorage();
+  saveSpaceWeatherCache(sampleSnapshot, storage);
+  const cached = loadSpaceWeatherCache(storage);
+  assert.equal(cached.source_mode, 'local_cache');
+  assert.equal(toSpaceWeatherDatum(sampleSnapshot, false).source, 'measured');
+  assert.equal(toSpaceWeatherDatum({ ...sampleSnapshot, source_mode: 'historical_fallback' }, false).source, 'simulated');
+
+  const merged = mergeRealtimeSpaceWeatherEvent(sampleSnapshot, {
+    event_id: 'FLR-1', event_type: 'FLR', event_time: '2026-11-14T17:35:00Z',
+    severity: 'MODERATE', summary: 'Updated M2.1', flare_class: 'M2.1', source_location: 'N32E90',
+  });
+  assert.equal(merged.events.length, 1);
+  assert.equal(merged.events[0].summary, 'Updated M2.1');
+
+  const envWithWeather = buildEnvironment('A', defaultEnvironmentSettings(), undefined, new Date('2026-11-14T18:05:00Z'), toSpaceWeatherDatum(sampleSnapshot, false));
+  const aiContext = buildAssistantContext('A', [], [], [], envWithWeather);
+  const reply = await demoAssistant.ask('Space weather?', aiContext);
+  assert.match(reply.facts, /G1 MINOR/);
+});
+test('space weather visualizer renders solar flares, ENLIL, NOAA online feed, ISS coords, and suppresses NOAA offline', () => {
+  const htmlOnline = renderToStaticMarkup(React.createElement(SpaceWeatherVisualizer, {
+    snapshot: {
+      kp_current: 5.5, storm_level: 'G1_MINOR', radiation_storm: 'S1_MINOR',
+      latest_flare_class: 'X1.0', latest_flare_location: 'S15W30', active_sep: true,
+      earth_impact_eta: '2099-01-01T12:00:00Z',
+      summary: 'Active flare watch', source_mode: 'live_nasa', fetched_at: '2026-11-14T18:00:00Z',
+      events: [
+        { event_id: 'F1', event_type: 'FLR', event_time: '2026-11-14T17:00:00Z', severity: 'SEVERE', summary: 'X1.0 flare', flare_class: 'X1.0', source_location: 'S15W30' },
+        { event_id: 'CME-1', event_type: 'CME', event_time: '2026-11-14T17:10:00Z', severity: 'MODERATE', summary: 'Halo CME 1120 km/s', cme_speed_kms: 1120, cme_half_angle: 35, cme_longitude: 12 },
+      ],
+    },
+    vitals: { iss_latitude: -24.5, iss_longitude: -42.1, iss_altitude_km: 421.3, orbital_phase: 'saa_transit', iss_coord_source: 'live_iss', radiation_rate: 31.2 },
+    offline: false,
+    realtimeConnected: true,
+    loading: false,
+  }));
+  assert.match(htmlOnline, /X1\.0/);
+  assert.match(htmlOnline, /Supabase Realtime/);
+  assert.match(htmlOnline, /CME &amp; WSA-ENLIL geometry/);
+  assert.match(htmlOnline, /services\.swpc\.noaa\.gov\/images\/animations\/enlil\/latest\.jpg/);
+  assert.match(htmlOnline, /Pause prediction video/);
+  assert.doesNotMatch(htmlOnline, /Previous prediction frame/);
+  assert.doesNotMatch(htmlOnline, /Next prediction frame/);
+  assert.doesNotMatch(htmlOnline, /Prediction playback speed/);
+  assert.doesNotMatch(htmlOnline, />Expand</);
+  const visualizerSource = require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'components', 'SpaceWeatherVisualizer.tsx'), 'utf8');
+  assert.doesNotMatch(visualizerSource, /noaa-scrubber|Scrub WSA-ENLIL prediction timeline|enlilSpeed|noaaExpanded/);
+  assert.match(htmlOnline, /Kp 5\.5/);
+  assert.match(htmlOnline, /SAA TRANSIT/);
+  assert.match(htmlOnline, /Lat -24\.50 deg, Lon -42\.10 deg/);
+  assert.match(htmlOnline, /saa-flux-grad/);
+  assert.match(htmlOnline, /SAA PEAK/);
+  assert.match(htmlOnline, /iss-map-legend/);
+  assert.match(htmlOnline, /Inside SAA/);
+  assert.doesNotMatch(htmlOnline, /width="90" height="40"/);
+
+  const { isInSaa, saaFluxProfile, generateSaaSamplePoints } = require('../src/services/spaceWeather.ts');
+  assert.equal(isInSaa(-25.0, -48.0), true);
+  assert.equal(saaFluxProfile(-25.0, -48.0).tier, 'CORE');
+  assert.equal(isInSaa(-6.0, 4.0), false);
+  assert.ok(generateSaaSamplePoints().length >= 30);
+
+  const { ECGMonitor } = require('../src/components/ECGMonitor.tsx');
+  const ecgSim = renderToStaticMarkup(React.createElement(ECGMonitor, { heartRate: 68, ecgSamples: [0.1, 0.2], telemetrySource: 'simulated', sampleRateHz: 100, orbitalPhase: 'daylight' }));
+  assert.match(ecgSim, /NASA-CALIBRATED SIM/);
+  assert.match(ecgSim, /ORBITAL LEAD-II TRACE · DAYLIGHT/);
+  const ecgBle = renderToStaticMarkup(React.createElement(ECGMonitor, { heartRate: 74, telemetrySource: 'measured', sampleRateHz: 100 }));
+  assert.match(ecgBle, /MEASURED · BLE R-R/);
+  assert.match(ecgBle, /SYNTHESIZED FROM LIVE BLE R-R/);
+
+  const htmlOffline = renderToStaticMarkup(React.createElement(SpaceWeatherVisualizer, {
+    snapshot: null, offline: true, realtimeConnected: false, loading: false,
+  }));
+  assert.match(htmlOffline, /Offline cache/);
+  assert.doesNotMatch(htmlOffline, /services\.swpc\.noaa\.gov/);
+  assert.match(formatEtaCountdown('2099-01-01T12:00:00Z', new Date('2099-01-01T10:30:00Z')), /T-1h 30m/);
+});
+test('app shell renders optional Bluetooth heart sensor setting cleanly', () => {
+  const html = renderToStaticMarkup(React.createElement(AppShell, {
+    page: 'dashboard',
+    crew: [{ id: 'ASTRO-01', name: 'Dr. Sarah Chen', role: 'Commander', age: 38, resting_hr: 62, baseline_spo2: 98.8, status: 'NOMINAL' }],
+    activeId: 'ASTRO-01',
+    selectCrew: () => {},
+    crewDemo: true,
+    offline: false,
+    gateway: true,
+    los: false,
+    toggleLos: () => {},
+    pending: 0,
+    syncing: false,
+    sync: () => {},
+    sound: false,
+    toggleSound: () => {},
+    contrast: false,
+    toggleContrast: () => {},
+    bleStatus: 'disconnected',
+    connectBle: () => {},
+    disconnectBle: () => {},
+  }, React.createElement('div', null, 'Body')));
+  assert.match(html, /Add Bluetooth heart sensor/);
+});
+
+test('live ISS feed, multi-alert triage, simulation distance/duration scenarios, and diagnostics render cleanly', () => {
+  const issFeed = buildPropagatedIssFeed(new Date('2026-11-14T18:00:00Z'));
+  assert.ok(issFeed.predicted_track.length > 10);
+  const vizHtml = renderToStaticMarkup(React.createElement(SpaceWeatherVisualizer, {
+    snapshot: {
+      kp_current: 4.5, storm_level: 'G0_QUIET', radiation_storm: 'S0_NONE',
+      latest_flare_class: 'M1.7', latest_flare_location: 'S07W46', active_sep: false,
+      summary: 'Active M1.7 flare', source_mode: 'live_nasa', fetched_at: '2026-11-14T18:00:00Z',
+      events: [
+        { event_id: 'F1', event_type: 'FLR', event_time: '2026-11-14T17:00:00Z', severity: 'MODERATE', summary: 'M1.7', flare_class: 'M1.7', source_location: 'S07W46' },
+        { event_id: 'F2', event_type: 'FLR', event_time: '2026-11-14T16:30:00Z', severity: 'MODERATE', summary: 'M1.4', flare_class: 'M1.4', source_location: 'S08W45' },
+      ],
+    },
+    issFeed,
+    offline: false,
+    realtimeConnected: false,
+    loading: false,
+  }));
+  assert.match(vizHtml, /LIVE ISS LOCATION FEED/);
+  assert.match(vizHtml, /SAA PEAK/);
+  assert.match(vizHtml, /10\+ p\/cm2\/s/);
+  assert.match(vizHtml, /M1\.7/);
+  assert.match(vizHtml, /M1\.4/);
+  assert.doesNotMatch(vizHtml, /Recent DONKI events/);
+
+  const simConfig = { ...defaultSimulationConfig(), missionZone: 'MARS_TRANSIT', missionDay: 240, shielding: 'UNSHIELDED_EVA', solarStorm: 'X_CLASS_SPE', anomaly: 'COMPOUND_CRISIS' };
+  const sampleVitals = {
+    astronaut_id: 'ASTRO-01', timestamp: '2026-11-14T18:00:00Z', heart_rate: 140, spo2: 88.4,
+    core_temp: 38.75, radiation_rate: 98.4, hrv: 18.5, systolic_bp: 112, diastolic_bp: 74,
+    respiration_rate: 26, orbital_phase: 'mars_transit', mission_zone: 'MARS_TRANSIT', mission_day: 240,
+    distance_km: 225000000, comms_latency_sec: 750.5, cumulative_dose_msv: 737.3, overall_health_score: 36.2, health_status: 'CRITICAL',
+  };
+  const alerts = evaluateLocalAlerts(sampleVitals, 7);
+  assert.ok(alerts.length >= 4);
+  const alertHtml = renderToStaticMarkup(React.createElement(AlertBanner, {
+    alerts, onAcknowledge: () => {}, onAcknowledgeAll: () => {},
+  }));
+  assert.match(alertHtml, /Mark all/);
+  assert.match(alertHtml, /Recommended action:/);
+
+  const risks = computeSpaceEnvironmentRisks(sampleVitals, simConfig);
+  assert.equal(risks.length, 6);
+  const simHtml = renderToStaticMarkup(React.createElement(AnomalyDemoBar, {
+    currentAnomaly: 'COMPOUND_CRISIS', simConfig, vitals: sampleVitals,
+    onTrigger: () => {}, onUpdateSimConfig: () => {}, onRunDiagnostics: () => {}, isDiagnosing: false,
+  }));
+  assert.match(simHtml, /36\.2 \/ 100/);
+  assert.match(simHtml, /Mars Transfer Cruise/);
+  assert.match(simHtml, /SANS &amp; Cephalad Fluid Shift/);
+
+  const diagHtml = renderToStaticMarkup(React.createElement(DiagnosticsModal, {
+    result: {
+      astronaut_id: 'ASTRO-01', overall_health_score: 36.2, cardiovascular_status: 'CRITICAL',
+      hypoxia_risk: 'SEVERE', radiation_risk: 'DANGEROUS',
+      recommendations: ['Relocate to storm shelter'], metrics_summary: { mission_zone: 'MARS_TRANSIT', mission_day: 240, cumulative_dose_msv: 737.3 },
+      environment_risks: risks,
+    },
+    onClose: () => {},
+  }));
+  assert.match(diagHtml, /36\.2 \/ 100/);
+  assert.match(diagHtml, /737\.3 mSv/);
+
+  const dupAlerts = [
+    { id: 'h-old', astronaut_id: 'ASTRO-01', timestamp: '2026-11-14T18:00:00Z', severity: 'CRITICAL', alert_type: 'HYPOXIA', message: 'SpO2 88.2%', trigger_metric: 'SpO2 88.2%', acknowledged: false },
+    { id: 'h-new', astronaut_id: 'ASTRO-01', timestamp: '2026-11-14T18:01:00Z', severity: 'CRITICAL', alert_type: 'HYPOXIA', message: 'SpO2 86.4%', trigger_metric: 'SpO2 86.4%', acknowledged: false },
+    { id: 'r-1', astronaut_id: 'ASTRO-01', timestamp: '2026-11-14T18:01:05Z', severity: 'WARNING', alert_type: 'RADIATION_SPIKE', message: 'Rad 35 uSv/h', trigger_metric: 'Rad 35 uSv/h', acknowledged: false },
+  ];
+  const dedupedAlertHtml = renderToStaticMarkup(React.createElement(AlertBanner, {
+    alerts: dupAlerts, onAcknowledge: () => {}, onAcknowledgeAll: () => {},
+  }));
+  assert.match(dedupedAlertHtml, /Latest of 2 updates/);
+  assert.match(dedupedAlertHtml, /SpO2 86\.4%/);
+  assert.match(dedupedAlertHtml, /Mark as seen/);
+  assert.match(dedupedAlertHtml, /Mark all 2 seen/);
+  assert.doesNotMatch(dedupedAlertHtml, /SpO2 88\.2%/);
+  assert.doesNotMatch(dedupedAlertHtml, /Filter alerts by hazard category/);
+  assert.doesNotMatch(dedupedAlertHtml, /Atmosphere &amp; Suit/);
+  assert.doesNotMatch(dedupedAlertHtml, /Space Radiation/);
+  assert.match(vizHtml, /VIDEO PREDICTION LOOP/);
+  assert.match(vizHtml, /STATIC LATEST SNAPSHOT/);
+  assert.equal(parseEnlilFrameLabel('/images/animations/enlil/enlil_com2_58611_20261112T030000.jpg'), '2026-11-12 03:00 UTC');
+});
+
+test('interactive body map, metabolic/immune alerts, and planetary rover scenarios evaluate accurately', () => {
+  const { evaluateBodySystems } = require('../src/services/bodyHealthModel.ts');
+  const { BodyHealthMap } = require('../src/components/BodyHealthMap.tsx');
+  const { MultiMetricChart } = require('../src/components/MultiMetricChart.tsx');
+
+  const stressVitals = {
+    astronaut_id: 'ASTRO-01',
+    timestamp: '2026-11-14T18:00:00Z',
+    heart_rate: 76,
+    spo2: 98.2,
+    core_temp: 36.8,
+    radiation_rate: 28.0,
+    hrv: 44,
+    blood_glucose: 49,
+    hydration_pct: 79,
+    wbc_k_ul: 3.1,
+    mission_zone: 'PLANETARY_ROVER',
+    mission_day: 60,
+  };
+
+  const alerts = evaluateLocalAlerts(stressVitals, 6);
+  const types = new Set(alerts.map(a => a.alert_type));
+  assert.ok(types.has('HYPOGLYCEMIA'));
+  assert.ok(types.has('DEHYDRATION'));
+  assert.ok(types.has('IMMUNE_SUPPRESSION'));
+  const hypoAlert = alerts.find(a => a.alert_type === 'HYPOGLYCEMIA');
+  assert.equal(hypoAlert.severity, 'CRITICAL');
+
+  const roverRisks = computeSpaceEnvironmentRisks(stressVitals, { ...defaultSimulationConfig(), missionZone: 'PLANETARY_ROVER' });
+  assert.equal(roverRisks.length, 6);
+
+  const regions = evaluateBodySystems({
+    vitals: stressVitals,
+    latestCheckIn: sample({ metabolic: { bloodGlucoseMgDl: 49, hydrationMl: 1200, nutritionQuality: 'poor' } }),
+    completions: [],
+    kpIndex: 6.2,
+  });
+  assert.equal(regions.length, 6);
+  const metabolic = regions.find(r => r.id === 'metabolic');
+  const immune = regions.find(r => r.id === 'dermal_immune');
+  assert.equal(metabolic.status, 'critical');
+  assert.ok(['warning', 'critical'].includes(immune.status));
+
+  const mapHtml = renderToStaticMarkup(React.createElement(BodyHealthMap, {
+    vitals: stressVitals,
+    latestCheckIn: null,
+    completions: [],
+    kpIndex: 6.2,
+    onOpenSelfExam: () => {},
+    onAskAi: () => {},
+  }));
+  assert.match(mapHtml, /Interactive Crew Body Map/);
+  assert.match(mapHtml, /\/branding\/human-anatomy\.jpg/);
+  assert.match(mapHtml, /body-pin status-/);
+  assert.doesNotMatch(mapHtml, /M88 55/);
+  assert.match(mapHtml, /Metabolic/);
+  assert.match(mapHtml, /COUNTERMEASURES/);
+  assert.doesNotMatch(mapHtml, /body-3d-controls/);
+  assert.doesNotMatch(mapHtml, /body-3d-mode-switch/);
+  assert.doesNotMatch(mapHtml, /body-3d-center-btn/);
+  assert.doesNotMatch(mapHtml, /Zoom in 3D body view/);
+
+  const body3dSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'components', 'BodyAnatomy3D.tsx'), 'utf8');
+  assert.match(body3dSource, /createMultidimensionalBackdrop/);
+  assert.match(body3dSource, /addFloorSegments/);
+  assert.doesNotMatch(body3dSource, /rxBox/);
+  assert.doesNotMatch(body3dSource, /railGeom/);
+  assert.doesNotMatch(body3dSource, /outerR/);
+  assert.match(body3dSource, /chestPect/);
+  assert.match(body3dSource, /spineGroove/);
+  assert.match(body3dSource, /faceSculpt/);
+  assert.match(body3dSource, /FogExp2/);
+  assert.match(body3dSource, /zoomToCursor\s*=\s*false/);
+  assert.match(body3dSource, /setViewOffset/);
+  assert.match(body3dSource, /applyCanvasPan/);
+  assert.match(body3dSource, /recenterView/);
+  assert.match(body3dSource, /touchCoords/);
+  assert.match(body3dSource, /spaceHeld/);
+  assert.match(body3dSource, /ArrowLeft/);
+
+  const multiHtml = renderToStaticMarkup(React.createElement(MultiMetricChart, {
+    samples: [stressVitals, { ...stressVitals, heart_rate: 84, blood_glucose: 88, timestamp: '2026-11-14T18:01:00Z' }],
+  }));
+  assert.match(multiHtml, /Blood Sugar/);
+  assert.match(multiHtml, /Heart Rate/);
+});
+
+test('self-exam local storage, check-in metabolic fields, readiness routines, and flightAssistant fallback work end to end', async () => {
+  const { runAndSaveSelfExam, listImageAssessments } = require('../src/services/selfExams.ts');
+  const { SelfExamCapture } = require('../src/components/SelfExamCapture.tsx');
+  const { evaluateMissionRoutines } = require('../src/services/missionRoutines.ts');
+  const { MissionsPage } = require('../src/pages/MissionsPage.tsx');
+  const { flightAssistant } = require('../src/services/ai.ts');
+
+  const vitals = {
+    astronaut_id: 'ASTRO-01',
+    timestamp: '2026-11-14T18:00:00Z',
+    heart_rate: 70,
+    spo2: 98.5,
+    core_temp: 36.7,
+    radiation_rate: 12.0,
+    hrv: 52,
+    blood_glucose: 94,
+    hydration_pct: 94,
+    wbc_k_ul: 6.2,
+    mission_day: 22,
+  };
+
+  const savedExam = await runAndSaveSelfExam({
+    astronautId: 'ASTRO-01',
+    examType: 'ocular_ultrasound',
+    dataUrl: '',
+    mimeType: 'image/png',
+    notes: 'Routine SANS ultrasound check',
+    vitals,
+    kpIndex: 2.3,
+    offline: true,
+  });
+  assert.equal(savedExam.examType, 'ocular_ultrasound');
+  assert.equal(savedExam.analysisSource, 'device-offline');
+
+  const astro1List = await listImageAssessments('ASTRO-01');
+  const astro2List = await listImageAssessments('ASTRO-02');
+  assert.equal(astro1List.length, 1);
+  assert.equal(astro2List.length, 0);
+
+  const examHtml = renderToStaticMarkup(React.createElement(SelfExamCapture, {
+    astronautId: 'ASTRO-01',
+    vitals,
+    kpIndex: 2.3,
+    offline: true,
+    examType: 'ocular_ultrasound',
+    onExamTypeChange: () => {},
+    assessments: astro1List,
+    onAssessmentSaved: () => {},
+  }));
+  assert.match(examHtml, /Ocular Ultrasound \(SANS\)/);
+  assert.match(examHtml, /Optic nerve sheath diameter/);
+
+  const draft = createCheckInDraft();
+  draft.sleepHours = '7.5';
+  draft.mood = 'Good';
+  draft.exercise = 'yes';
+  draft.exerciseMinutes = '35';
+  draft.bloodGlucoseMgDl = '98';
+  draft.hydrationMl = '2400';
+  draft.nutritionQuality = 'optimal';
+  draft.immuneSymptoms = 'none';
+  const rec = recordFromDraft(draft, 'ASTRO-01', vitals);
+  assert.equal(rec.metabolic.bloodGlucoseMgDl, 98);
+  assert.equal(rec.metabolic.hydrationMl, 2400);
+  assert.equal(rec.metabolic.nutritionQuality, 'optimal');
+  assert.deepEqual(rec.metabolic.immuneSymptoms, ['none']);
+
+  const readiness = evaluateMissionRoutines({
+    vitals,
+    records: [
+      sample({ createdAt: `${localDate()}T08:00:00` }),
+      sample({ id: 'record-prev', createdAt: `${localDate(new Date(Date.now() - 86400000))}T08:00:00` }),
+    ],
+    completions: [
+      { astronautId: 'ASTRO-01', date: localDate(), missionId: 'sleep' },
+      { astronautId: 'ASTRO-01', date: localDate(), missionId: 'physical-ared' },
+    ],
+    assessments: astro1List,
+    kpIndex: 2.3,
+  });
+  assert.ok(readiness.streakDays >= 2);
+  assert.ok(readiness.xp > 0);
+  assert.ok(readiness.badges.some(b => b.id === 'ared-pro' && b.earned));
+  assert.ok(readiness.badges.some(b => b.id === 'sans-watch' && b.earned));
+  assert.ok(readiness.badges.some(b => b.id === 'hydrated' && b.earned));
+
+  const missionsHtml = renderToStaticMarkup(React.createElement(MissionsPage, {
+    checkedIn: true,
+    astronautId: 'ASTRO-01',
+    completions: [],
+    onToggle: async () => {},
+    loading: false,
+    loadError: '',
+    activitySaving: false,
+    readiness,
+  }));
+  assert.match(missionsHtml, /Check-In Streak/);
+  assert.match(missionsHtml, /XP/);
+
+  const safeCtx = buildAssistantContext('ASTRO-01', [sample({ astronautId: 'ASTRO-01', symptoms: 'SECRET_SYMPTOM', notes: 'SECRET_NOTE', metabolic: { bloodGlucoseMgDl: 98 } })], [], [], undefined, vitals);
+  assert.equal(JSON.stringify(safeCtx).includes('SECRET_SYMPTOM'), false);
+  assert.equal(JSON.stringify(safeCtx).includes('SECRET_NOTE'), false);
+  const aiReply = await flightAssistant.ask('How is my sleep history?', safeCtx);
+  assert.match(aiReply.sourceLabel, /Onboard Demo Fallback/);
+  assert.match(aiReply.facts, /7\.5 hours/);
+
+  const { SpaceEnvironmentPanel } = require('../src/components/SpaceEnvironment.tsx');
+  const envHtml = renderToStaticMarkup(React.createElement(SpaceEnvironmentPanel, {
+    vitals,
+    offline: false,
+    hideScenarioControls: true,
+  }));
+  assert.doesNotMatch(envHtml, /Scenario and manual observations/);
+  assert.doesNotMatch(envHtml, /Save local context/);
+  assert.doesNotMatch(envHtml, /Demo mission type/);
+
+  const { AnalyticsPage } = require('../src/pages/AnalyticsPage.tsx');
+  const { CheckInPage: LiveCheckInPage } = require('../src/pages/CheckInPage.tsx');
+  const { AIPage: LiveAIPage } = require('../src/pages/AIPage.tsx');
+
+  const liveAnalyticsHtml = renderToStaticMarkup(React.createElement(AnalyticsPage, {
+    records: [sample({ astronautId: 'ASTRO-01' })],
+    astronaut: { id: 'ASTRO-01', name: 'Cmdr. Vance', resting_hr: 62, role: 'Commander' },
+    alerts: [],
+    assessments: astro1List,
+    vitals: { ...vitals, overall_health_score: 94.2, health_status: 'NOMINAL', mission_day: 22 },
+    telemetryHistory: [vitals, { ...vitals, heart_rate: 76, spo2: 97.8, blood_glucose: 102, timestamp: '2026-11-14T18:01:00Z' }],
+    kpIndex: 3.1,
+  }));
+  assert.match(liveAnalyticsHtml, /Live Biometric Stream &amp; Rolling Trends/);
+  assert.match(liveAnalyticsHtml, /94\.2 \/ 100/);
+  assert.match(liveAnalyticsHtml, /102/);
+  assert.doesNotMatch(liveAnalyticsHtml, /<details/);
+
+  const liveCheckinHtml = renderToStaticMarkup(React.createElement(LiveCheckInPage, {
+    astronautId: 'ASTRO-01',
+    vitals,
+    records: [],
+    offline: false,
+    gateway: true,
+    onSaved: () => {},
+  }));
+  assert.match(liveCheckinHtml, /Live Telemetry Context/);
+  assert.match(liveCheckinHtml, /94 mg\/dL/);
+  assert.doesNotMatch(liveCheckinHtml, /<details/);
+  assert.doesNotMatch(liveCheckinHtml, /<select/);
+
+  assert.match(missionsHtml, /Live recommendation:/);
+  assert.doesNotMatch(missionsHtml, /<details/);
+
+  const liveAiHtml = renderToStaticMarkup(React.createElement(LiveAIPage, {
+    context: safeCtx,
+    offline: false,
+    gateway: true,
+  }));
+  assert.match(liveAiHtml, /HR 70 BPM/);
+  assert.match(liveAiHtml, /Glucose 94 mg\/dL/);
+  assert.doesNotMatch(liveAiHtml, /<details/);
+
+  const { ECGMonitor } = require('../src/components/ECGMonitor.tsx');
+  const { MultiMetricChart: CompactMultiMetric } = require('../src/components/MultiMetricChart.tsx');
+  const compactEcgHtml = renderToStaticMarkup(React.createElement(ECGMonitor, {
+    heartRate: 72,
+    ecgSamples: [0.1, 0.2],
+    telemetrySource: 'simulated',
+    compact: true,
+  }));
+  const compactMultiHtml = renderToStaticMarkup(React.createElement(CompactMultiMetric, {
+    samples: [vitals, { ...vitals, heart_rate: 76, core_temp: 37.04, timestamp: '2026-11-14T18:01:00Z' }],
+    compact: true,
+    extended: true,
+  }));
+  assert.match(compactEcgHtml, /ecg-panel compact/);
+  assert.match(compactEcgHtml, /Lead-II ECG Waveform/);
+  assert.match(compactMultiHtml, /multi-trend-grid\s+extended\s+compact/);
+  assert.match(compactMultiHtml, /Body Temperature/);
+  assert.match(compactMultiHtml, /37\.04/);
+  assert.match(compactMultiHtml, /viewBox="0 0 280 46"/);
+
+  const appSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'App.tsx'), 'utf8');
+  assert.match(appSource, /secondary-metrics-strip/);
+  assert.match(appSource, /daily-panel-grid/);
+  assert.doesNotMatch(appSource, /dashboard-grid/);
+  assert.doesNotMatch(appSource, /dashboard-aside/);
 });

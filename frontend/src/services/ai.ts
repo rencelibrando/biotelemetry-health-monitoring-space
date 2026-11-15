@@ -1,22 +1,31 @@
-﻿import type { AssistantReply, CheckIn, MissionCompletion } from '../types/wellness';
-import type { AlertItem } from '../types/telemetry';
+import type { AssistantReply, CheckIn, MissionCompletion } from '../types/wellness';
+import type { AlertItem, VitalSigns } from '../types/telemetry';
 import type { SpaceEnvironment } from '../types/spaceWellness';
+import { askFlightAssistantApi } from './api';
 import { localDate, missionCatalog } from './missions';
 import { durationLabel, sourceLabels } from './environment';
 
 type AssistantRecord = Pick<CheckIn, 'id' | 'astronautId' | 'createdAt' | 'sleepHours' | 'sleepQuality' | 'fatigue' | 'stress' | 'mood' | 'exerciseMinutes'> & {
   spaceWellness?: { version: 1; pain?: { intensity?: number }; mental?: NonNullable<CheckIn['spaceWellness']>['mental']; sleep?: NonNullable<CheckIn['spaceWellness']>['sleep']; environment?: SpaceEnvironment };
+  metabolic?: { bloodGlucoseMgDl?: number; hydrationMl?: number; nutritionQuality?: string };
 };
-export interface AssistantContext { astronautId: string; records: AssistantRecord[]; alerts: AlertItem[]; completions: MissionCompletion[]; environment?: SpaceEnvironment }
+export interface AssistantContext { astronautId: string; records: AssistantRecord[]; alerts: AlertItem[]; completions: MissionCompletion[]; environment?: SpaceEnvironment; vitals?: VitalSigns; focusOrgan?: string }
 export interface AssistantService { ask(question: string, context: AssistantContext): Promise<AssistantReply> }
 // Explicit projection excludes symptoms, pain location, discomfort notes and all
-// personal reflections. This demo sends nothing to any AI provider.
-export function buildAssistantContext(astronautId: string, records: CheckIn[], alerts: AlertItem[], completions: MissionCompletion[], environment?: SpaceEnvironment): AssistantContext {
+// free-text reflections from assistant context payloads.
+export function buildAssistantContext(astronautId: string, records: CheckIn[], alerts: AlertItem[], completions: MissionCompletion[], environment?: SpaceEnvironment, vitals?: VitalSigns): AssistantContext {
   return { astronautId, records: records.filter(record => record.astronautId === astronautId).map(record => {
-    const { id, createdAt, sleepHours, sleepQuality, fatigue, stress, mood, exerciseMinutes } = record;
+    const { id, createdAt, sleepHours, sleepQuality, fatigue, stress, mood, exerciseMinutes, metabolic } = record;
     const extra = record.spaceWellness;
-    return { id, astronautId, createdAt, sleepHours, sleepQuality, fatigue, stress, mood, exerciseMinutes, ...(extra?.version === 1 ? { spaceWellness: { version: 1 as const, ...(extra.pain?.intensity !== undefined ? { pain: { intensity: extra.pain.intensity } } : {}), mental: extra.mental, sleep: extra.sleep, environment: extra.environment?.astronautId === astronautId ? extra.environment : undefined } } : {}) };
-  }), alerts: alerts.filter(alert => alert.astronaut_id === astronautId), completions: completions.filter(item => item.astronautId === astronautId), environment: environment?.astronautId === astronautId ? environment : undefined };
+    const safeMetabolic = metabolic
+      ? {
+          ...(metabolic.bloodGlucoseMgDl !== undefined ? { bloodGlucoseMgDl: metabolic.bloodGlucoseMgDl } : {}),
+          ...(metabolic.hydrationMl !== undefined ? { hydrationMl: metabolic.hydrationMl } : {}),
+          ...(metabolic.nutritionQuality ? { nutritionQuality: metabolic.nutritionQuality } : {}),
+        }
+      : undefined;
+    return { id, astronautId, createdAt, sleepHours, sleepQuality, fatigue, stress, mood, exerciseMinutes, ...(safeMetabolic && Object.keys(safeMetabolic).length ? { metabolic: safeMetabolic } : {}), ...(extra?.version === 1 ? { spaceWellness: { version: 1 as const, ...(extra.pain?.intensity !== undefined ? { pain: { intensity: extra.pain.intensity } } : {}), mental: extra.mental, sleep: extra.sleep, environment: extra.environment?.astronautId === astronautId ? extra.environment : undefined } } : {}) };
+  }), alerts: alerts.filter(alert => alert.astronaut_id === astronautId), completions: completions.filter(item => item.astronautId === astronautId), environment: environment?.astronautId === astronautId ? environment : undefined, vitals };
 }
 export const demoAssistant: AssistantService = {
   async ask(question, context) {
@@ -45,7 +54,11 @@ export const demoAssistant: AssistantService = {
       if (!environment) facts = 'No environment context is available for the selected astronaut.';
       else if (/radiat/i.test(question)) facts = environment.radiationRate.value === null ? 'No environmental radiation reading is available.' : `${sourceLabels[environment.radiationRate.source]}: environmental radiation rate ${environment.radiationRate.value} μSv/h, recorded ${environment.radiationRate.recordedAt ?? environment.capturedAt}. This is not a personal radiation dose.`;
       else if (/cabin/i.test(question)) facts = environment.cabinOxygen.value === null ? 'No cabin oxygen information is available. Blood oxygen is a separate measurement.' : `${sourceLabels[environment.cabinOxygen.source]}: cabin oxygen ${environment.cabinOxygen.value}%. This is separate from blood oxygen.`;
-      else if (/space.weather/i.test(question)) facts = 'Live space-weather status is unavailable. No live feed is connected.';
+      else if (/space.weather/i.test(question)) {
+        facts = environment.spaceWeather.value === null
+          ? 'Live space-weather status is unavailable. No live feed is connected.'
+          : `${sourceLabels[environment.spaceWeather.source]}: ${environment.spaceWeather.value}${environment.spaceWeather.recordedAt ? ` (updated ${environment.spaceWeather.recordedAt})` : ''}.`;
+      }
       else facts = `${environment.gravity.value ?? 'Gravity scenario is not configured.'} ${environment.microgravityHours.value === null ? 'Time in microgravity is unavailable for this scenario.' : `Scenario-assumed time in microgravity: ${durationLabel(environment.microgravityHours.value)}, derived from a manually entered start.`} Your ${records.length} saved check-in(s) record ${records.reduce((sum, record) => sum + record.exerciseMinutes, 0)} completed exercise minutes.`;
     } else if (pain) facts = painRecord ? `On ${new Date(painRecord.createdAt).toLocaleString()}, you recorded pain intensity ${painRecord.spaceWellness!.pain!.intensity}/10${painRecord.spaceWellness!.pain!.intensity === 0 ? ' (no pain)' : ''}. Private location and discomfort notes are not included in assistant context.` : 'No pain intensity is recorded for this astronaut. Missing data does not mean no pain.';
     else if (mental) {
@@ -57,5 +70,48 @@ export const demoAssistant: AssistantService = {
       : latest ? `You have ${records.length} locally saved check-in(s). On ${new Date(latest.createdAt).toLocaleString()}, you recorded ${latest.sleepHours} hours of sleep, sleep quality ${latest.sleepQuality}/5${sleep ? '.' : `, mood ${latest.mood.toLowerCase()}, tiredness ${latest.fatigue}/5 and stress ${latest.stress}/5.`}`
       : 'There are no saved health check-ins for this astronaut yet.';
     return { facts, explanation: environmental ? 'Source labels describe provenance, not safety. An environmental sensor cannot establish personal radiation dose, and this demo does not calculate muscle or bone loss.' : pain || mental ? 'These are optional self-reports, not a diagnosis or a clinical assessment.' : timing || sleep ? 'Sleep entries are self-reported. Timing alone cannot diagnose circadian disruption.' : observation ? 'This demo can quote a saved notification but cannot tell you its medical cause. Measurements are simulated.' : 'This demo explains only what you recorded. It cannot diagnose a condition or tell us why something changed.', action: observation ? 'Review the original notification with your mission medical team using approved procedures.' : 'Review My Health Trends or record an entry in Check-In. Follow your mission-approved procedures.' };
+  },
+};
+
+export const flightAssistant: AssistantService = {
+  async ask(question, context) {
+    const trimmed = question.trim();
+    if (!trimmed) throw new Error('Enter a question first.');
+    if (!context.astronautId) throw new Error('Choose an astronaut before asking about saved records.');
+    const latest = context.records[0];
+    try {
+      const moodScale = ['Very low', 'Low', 'Okay', 'Good', 'Great'].indexOf(latest?.mood ?? '') + 1;
+      const kpMatch = context.environment?.spaceWeather.value?.match(/Kp\s*([\d.]+)/i);
+      const res = await askFlightAssistantApi(trimmed, {
+        astronaut_id: context.astronautId,
+        mission_zone: context.vitals?.mission_zone,
+        mission_day: context.vitals?.mission_day,
+        heart_rate: context.vitals?.heart_rate,
+        spo2: context.vitals?.spo2,
+        core_temp: context.vitals?.core_temp,
+        blood_glucose: latest?.metabolic?.bloodGlucoseMgDl ?? context.vitals?.blood_glucose,
+        radiation_rate: context.vitals?.radiation_rate,
+        kp_index: kpMatch ? Number(kpMatch[1]) : undefined,
+        mood: moodScale > 0 ? moodScale : undefined,
+        energy: latest ? Math.max(1, 6 - latest.fatigue) : undefined,
+        stress: latest?.stress,
+        sleep_hours: latest?.sleepHours,
+        pain_level: latest?.spaceWellness?.pain?.intensity,
+        hydration_ml: latest?.metabolic?.hydrationMl,
+        nutrition_quality: latest?.metabolic?.nutritionQuality,
+        focus_organ: context.focusOrgan,
+      });
+      return {
+        facts: res.summary,
+        explanation: res.actions.join(' '),
+        action: `Escalate when: ${res.escalate_when}`,
+        sourceLabel: `${res.model} (${res.source})`,
+        nasaReference: res.nasa_reference,
+        escalate: res.escalate_when,
+      };
+    } catch {
+      const fallback = await demoAssistant.ask(trimmed, context);
+      return { ...fallback, sourceLabel: 'Onboard Demo Fallback' };
+    }
   },
 };

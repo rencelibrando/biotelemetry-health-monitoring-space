@@ -1,6 +1,5 @@
-﻿import type { CheckIn } from '../types/wellness';
+import type { CheckIn } from '../types/wellness';
 import { averageBedtimeShift, utcClockMinutes, type SleepTiming } from '../services/sleepTiming';
-import { Disclosure } from './WellnessUI';
 import { EmptyState } from './AppShell';
 import { TrendChart } from './TrendChart';
 import { EnvironmentReadings } from './SpaceEnvironment';
@@ -14,7 +13,7 @@ export function SleepScheduleChart({ timings }: { timings: SleepTiming[] }) {
 export function SpaceRecordDetails({ record }: { record: CheckIn }) {
   const extra = record.spaceWellness;
   if (!extra || extra.version !== 1) return null;
-  return <details className="optional-record-details"><summary>Optional wellness and environment entries</summary><dl className="review-grid"><div><dt>Pain intensity</dt><dd>{extra.pain?.intensity !== undefined ? `${extra.pain.intensity}/10${extra.pain.intensity === 0 ? ' · no pain' : ''}` : 'Not recorded'}</dd></div><div><dt>Feeling isolated</dt><dd>{extra.mental?.isolation !== undefined ? `${extra.mental.isolation}/5` : 'Not recorded'}</dd></div><div><dt>Social connection</dt><dd>{extra.mental?.socialConnection !== undefined ? `${extra.mental.socialConnection}/5` : 'Not recorded'}</dd></div><div><dt>Emotional well-being</dt><dd>{extra.mental?.emotionalWellbeing !== undefined ? `${extra.mental.emotionalWellbeing}/5` : 'Not recorded'}</dd></div></dl>{extra.pain?.location && <p><strong>Pain location:</strong> {extra.pain.location}</p>}{extra.pain?.notes && <p><strong>Discomfort notes:</strong> {extra.pain.notes}</p>}{extra.sleep && <p>Sleep window: {extra.sleep.startUtc} → {extra.sleep.wakeUtc} (UTC), {(extra.sleep.windowMinutes / 60).toFixed(2)} hours. This is separate from reported time asleep.</p>}{extra.environment?.astronautId === record.astronautId && <EnvironmentReadings context={extra.environment} />}<p className="helper">Version 1 optional entries · local demo only · not sent to the server.</p></details>;
+  return <div className="optional-record-details"><dl className="review-grid"><div><dt>Pain intensity</dt><dd>{extra.pain?.intensity !== undefined ? `${extra.pain.intensity}/10${extra.pain.intensity === 0 ? ' · no pain' : ''}` : 'Not recorded'}</dd></div><div><dt>Feeling isolated</dt><dd>{extra.mental?.isolation !== undefined ? `${extra.mental.isolation}/5` : 'Not recorded'}</dd></div><div><dt>Social connection</dt><dd>{extra.mental?.socialConnection !== undefined ? `${extra.mental.socialConnection}/5` : 'Not recorded'}</dd></div><div><dt>Emotional well-being</dt><dd>{extra.mental?.emotionalWellbeing !== undefined ? `${extra.mental.emotionalWellbeing}/5` : 'Not recorded'}</dd></div></dl>{extra.pain?.location && <p><strong>Pain location:</strong> {extra.pain.location}</p>}{extra.pain?.notes && <p><strong>Discomfort notes:</strong> {extra.pain.notes}</p>}{extra.sleep && <p>Sleep window: {extra.sleep.startUtc} → {extra.sleep.wakeUtc} (UTC), {(extra.sleep.windowMinutes / 60).toFixed(2)} hours. This is separate from reported time asleep.</p>}{extra.environment?.astronautId === record.astronautId && <EnvironmentReadings context={extra.environment} />}<p className="helper">Version 1 optional entries · local demo only · not sent to the server.</p></div>;
 }
 export function SpaceWellnessTrends({ records, astronautId }: { records: CheckIn[]; astronautId: string }) {
   const scoped = records.filter(record => record.astronautId === astronautId);
@@ -25,11 +24,68 @@ export function SpaceWellnessTrends({ records, astronautId }: { records: CheckIn
   const snapshots = extras.flatMap(record => record.spaceWellness?.environment?.astronautId === astronautId ? [record.spaceWellness.environment] : []);
   const radiation = snapshots.flatMap(context => context.radiationRate.value === null ? [] : [{ time: context.capturedAt, value: context.radiationRate.value }]);
   const latestEnvironment = [...snapshots].sort((a, b) => b.capturedAt.localeCompare(a.capturedAt))[0];
-  return <>
-    <Disclosure title="Pain self-reports (optional)"><p className="helper">0 means no pain; 10 is the most intense pain you can imagine. A missing entry is not zero. Scores do not diagnose conditions.</p><TrendChart title="Pain intensity" unit="0–10 · self-report" domain={[0, 10]} points={pain} /></Disclosure>
-    <Disclosure title="Sleep schedule (optional)"><SleepScheduleChart timings={timings} /><p className="helper">Dates and clock positions use UTC, not this device’s timezone. Bars show the elapsed recorded window, not measured sleep. Overnight windows wrap at midnight. Mission-local time is not configured.</p><p className="helper">Irregular sleep timing can be associated with circadian disruption (changes in the body’s sleep-wake timing); these entries do not diagnose it.</p><a className="text-link" href="https://www.nasa.gov/reference/risk-from-inadequate-sleep-and-irregular-schedules/" target="_blank" rel="noreferrer">NASA: sleep and irregular schedules</a></Disclosure>
-    <Disclosure title="Mood, stress and connection (optional)"><p className="helper">Personal ratings, not a mental health screening or diagnosis. Isolation: 1 not at all → 5 very much. Connection: 1 not connected → 5 very connected. Emotional well-being: 1 very low → 5 very good.</p>{scoped.length ? <div className="table-scroll"><table><caption>Mood, stress and tiredness recorded in your check-ins</caption><thead><tr><th scope="col">Recorded</th><th scope="col">Mood</th><th scope="col">Stress</th><th scope="col">Tiredness</th></tr></thead><tbody>{scoped.map(record => <tr key={record.id}><td>{new Date(record.createdAt).toLocaleDateString()}</td><td>{record.mood}</td><td>{record.stress}/5</td><td>{record.fatigue}/5</td></tr>)}</tbody></table></div> : <EmptyState title="No mood or stress entries">Saved self-reports will appear here.</EmptyState>}<div className="chart-grid-layout"><TrendChart title="Feeling isolated" unit="1–5" domain={[1, 5]} points={mental('isolation')} /><TrendChart title="Social connection" unit="1–5" domain={[1, 5]} points={mental('socialConnection')} color="var(--success)" /><TrendChart title="Emotional well-being" unit="1–5" domain={[1, 5]} points={mental('emotionalWellbeing')} /></div></Disclosure>
-    <Disclosure title="Saved environment context (optional)">{latestEnvironment ? <><p className="helper">Latest snapshot saved with a check-in: {new Date(latestEnvironment.capturedAt).toLocaleString()}. Sources are shown per item; this is not a current/live reading.</p><EnvironmentReadings context={latestEnvironment} /><TrendChart title="Environmental radiation rate snapshots" unit="μSv/h" points={radiation} /><p className="helper">Existing radiation snapshots are simulated environmental rates, not personal accumulated doses. No exposure or safety outcome is inferred.</p></> : <EmptyState title="No environment snapshots saved">New local check-ins can include the available source-labeled environment context.</EmptyState>}</Disclosure>
-  </>;
+  return (
+    <div className="space-trends-grid">
+      <section className="panel space-trend-card">
+        <div className="section-heading">
+          <h3>Pain self-reports (optional)</h3>
+          <span className="pill">{pain.length} saved</span>
+        </div>
+        <p className="helper">0 means no pain; 10 is the most intense pain you can imagine. A missing entry is not zero.</p>
+        <TrendChart title="Pain intensity" unit="0–10 · self-report" domain={[0, 10]} points={pain} />
+      </section>
+
+      <section className="panel space-trend-card">
+        <div className="section-heading">
+          <h3>Sleep schedule (UTC, optional)</h3>
+          <span className="pill">{timings.length} windows</span>
+        </div>
+        <SleepScheduleChart timings={timings} />
+        <p className="helper">Dates and clock positions use UTC. Bars show the elapsed recorded window, not measured sleep.</p>
+        <a className="text-link" href="https://www.nasa.gov/reference/risk-from-inadequate-sleep-and-irregular-schedules/" target="_blank" rel="noreferrer">NASA: sleep and irregular schedules</a>
+      </section>
+
+      <section className="panel space-trend-card space-trend-wide">
+        <div className="section-heading">
+          <h3>Mood, stress and connection</h3>
+          <span className="pill">{scoped.length} check-ins</span>
+        </div>
+        <p className="helper">Personal ratings (1–5). Isolation: 1 not at all → 5 very much. Connection and well-being: 1 low → 5 good.</p>
+        {scoped.length ? (
+          <div className="table-scroll">
+            <table>
+              <caption>Mood, stress and tiredness recorded in your check-ins</caption>
+              <thead><tr><th scope="col">Recorded</th><th scope="col">Mood</th><th scope="col">Stress</th><th scope="col">Tiredness</th></tr></thead>
+              <tbody>{scoped.map(record => <tr key={record.id}><td>{new Date(record.createdAt).toLocaleDateString()}</td><td>{record.mood}</td><td>{record.stress}/5</td><td>{record.fatigue}/5</td></tr>)}</tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState title="No mood or stress entries">Saved self-reports will appear here.</EmptyState>
+        )}
+        <div className="chart-grid-layout">
+          <TrendChart title="Feeling isolated" unit="1–5" domain={[1, 5]} points={mental('isolation')} />
+          <TrendChart title="Social connection" unit="1–5" domain={[1, 5]} points={mental('socialConnection')} color="var(--success)" />
+          <TrendChart title="Emotional well-being" unit="1–5" domain={[1, 5]} points={mental('emotionalWellbeing')} />
+        </div>
+      </section>
+
+      <section className="panel space-trend-card space-trend-wide">
+        <div className="section-heading">
+          <h3>Saved environment context (optional)</h3>
+          <span className="pill">{snapshots.length} snapshots</span>
+        </div>
+        {latestEnvironment ? (
+          <>
+            <p className="helper">Latest snapshot saved with a check-in: {new Date(latestEnvironment.capturedAt).toLocaleString()}. Sources are shown per item.</p>
+            <EnvironmentReadings context={latestEnvironment} />
+            <TrendChart title="Environmental radiation rate snapshots" unit="μSv/h" points={radiation} />
+            <p className="helper">Existing radiation snapshots are simulated environmental rates, not personal accumulated doses.</p>
+          </>
+        ) : (
+          <EmptyState title="No environment snapshots saved">New local check-ins can include the available source-labeled environment context.</EmptyState>
+        )}
+      </section>
+    </div>
+  );
 }
 
