@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
+import * as THREE from 'three';
 import type * as ThreeTypes from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { BodyRegionAssessment, BodySystemId, OrganStatus } from '../services/bodyHealthModel';
 
 export interface CameraPresetRequest {
@@ -539,29 +541,23 @@ export default function BodyAnatomy3D({
     const cleanups: Array<() => void> = [];
 
     async function initScene() {
-      let THREE: typeof ThreeTypes;
-      let OrbitControlsCtor: new (
-        camera: ThreeTypes.Camera,
-        domElement: HTMLElement,
-      ) => NonNullable<typeof controls>;
-
-      try {
-        const [threeMod, orbitMod] = await Promise.all([
-          import('three'),
-          import('three/examples/jsm/controls/OrbitControls.js'),
-        ]);
-        THREE = threeMod;
-        OrbitControlsCtor = orbitMod.OrbitControls as unknown as typeof OrbitControlsCtor;
-      } catch {
-        onWebglReady(false);
-        return;
-      }
-
       if (disposed || !container) return;
 
       try {
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-      } catch {
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      } catch (err) {
+        console.warn('Standard WebGL init failed, attempting fallback without antialias:', err);
+        try {
+          renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
+        } catch (fallbackErr) {
+          console.error('WebGL initialization unavailable:', fallbackErr);
+          onWebglReady(false);
+          return;
+        }
+      }
+
+      if (!renderer || !renderer.getContext()) {
+        console.error('WebGL context acquisition returned null');
         onWebglReady(false);
         return;
       }
@@ -588,8 +584,8 @@ export default function BodyAnatomy3D({
       // Frame the full head-to-feet astronaut figure symmetrically with top HUD and floor clearance.
       camera.position.set(0.72, 0.24, 3.68);
 
-      const controlsInstance = new OrbitControlsCtor(camera, renderer.domElement);
-      controls = controlsInstance;
+      const controlsInstance = new OrbitControls(camera, renderer.domElement);
+      controls = controlsInstance as unknown as BodyControlsHandle;
       controlsInstance.enableDamping = true;
       controlsInstance.dampingFactor = 0.08;
       controlsInstance.enableRotate = true;
