@@ -20,6 +20,10 @@
       "dest": "/serverless/index.py"
     },
     {
+      "src": "/(docs|openapi.json)",
+      "dest": "/serverless/index.py"
+    },
+    {
       "handle": "filesystem"
     },
     {

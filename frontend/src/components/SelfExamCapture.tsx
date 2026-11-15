@@ -13,9 +13,11 @@ import {
 import {
   SELF_EXAM_GUIDES,
   buildObservationSpeechText,
+  computeObservationSpeechWeights,
   generateReferenceScanDataUrl,
   resizeImageFileToDataUrl,
   runAndSaveSelfExam,
+  sliceObservationStream,
 } from '../services/selfExams';
 import {
   isSpeechSynthesisSupported,
@@ -25,6 +27,7 @@ import {
   speakAssistantReply,
   stopSpeaking,
 } from '../services/voiceAssistant';
+import { charCountForStreamRatio } from '../pages/AIPage';
 import type { ImageAssessmentRecord, SelfExamType, VitalSigns } from '../types/telemetry';
 
 const OBSERVATION_PLACEHOLDERS: Record<SelfExamType, string> = {
@@ -69,6 +72,7 @@ export function SelfExamCapture({
   const [speaking, setSpeaking] = useState(false);
   const [ttsLoading, setTtsLoading] = useState(false);
   const [ttsError, setTtsError] = useState('');
+  const [streamedChars, setStreamedChars] = useState<number | undefined>(undefined);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -76,6 +80,96 @@ export function SelfExamCapture({
   const cameraRequestRef = useRef(0);
   const analyzeSessionRef = useRef(0);
   const mountedRef = useRef(true);
+  const streamTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const streamTargetRef = useRef<{
+    recordId: string;
+    weights: number[];
+    totalChars: number;
+    initialRevealed: number;
+    targetChars: number;
+    revealedChars: number;
+    waitingForTts: boolean;
+    audioDriven: boolean;
+    startedAtMs: number;
+    fallbackDurationMs: number;
+  } | null>(null);
+
+  function stopStreamTimer() {
+    if (streamTimerRef.current !== null) {
+      clearInterval(streamTimerRef.current);
+      streamTimerRef.current = null;
+    }
+  }
+
+  function finishStreaming() {
+    stopStreamTimer();
+    const cur = streamTargetRef.current;
+    if (cur && mountedRef.current) {
+      setStreamedChars(cur.totalChars);
+    }
+    streamTargetRef.current = null;
+  }
+
+  function startStreamTimer() {
+    stopStreamTimer();
+    streamTimerRef.current = setInterval(() => {
+      const cur = streamTargetRef.current;
+      if (!cur) {
+        stopStreamTimer();
+        return;
+      }
+      if (cur.waitingForTts) return;
+
+      if (!cur.audioDriven) {
+        const elapsed = Math.max(0, performance.now() - cur.startedAtMs);
+        const progressRatio = Math.min(1, elapsed / cur.fallbackDurationMs);
+        const startWeight = cur.initialRevealed > 0 ? (cur.weights[cur.initialRevealed - 1] ?? 0) : 0;
+        const totalWeight = cur.weights[cur.totalChars - 1] ?? cur.totalChars;
+        const targetRatio =
+          totalWeight > 0
+            ? (startWeight + (totalWeight - startWeight) * progressRatio) / totalWeight
+            : progressRatio;
+        cur.targetChars = Math.max(cur.targetChars, charCountForStreamRatio(cur.weights, targetRatio));
+      }
+
+      if (cur.revealedChars < cur.targetChars) {
+        const deficit = cur.targetChars - cur.revealedChars;
+        const step = deficit > 8 ? Math.ceil(deficit / 4) : 1;
+        cur.revealedChars = Math.min(cur.totalChars, cur.revealedChars + step);
+        setStreamedChars(cur.revealedChars);
+      }
+
+      if (cur.revealedChars >= cur.totalChars && cur.targetChars >= cur.totalChars) {
+        finishStreaming();
+      }
+    }, 24);
+  }
+
+  function startObservationStream(record: ImageAssessmentRecord, syncWithTts: boolean) {
+    const { weights, introEndIdx } = computeObservationSpeechWeights(record);
+    const totalChars = weights.length;
+    if (totalChars === 0) {
+      setStreamedChars(0);
+      return;
+    }
+
+    const totalWeight = weights[totalChars - 1] || totalChars;
+    const initialRevealed = syncWithTts ? 0 : introEndIdx;
+    streamTargetRef.current = {
+      recordId: record.id,
+      weights,
+      totalChars,
+      initialRevealed,
+      targetChars: initialRevealed,
+      revealedChars: initialRevealed,
+      waitingForTts: syncWithTts,
+      audioDriven: false,
+      startedAtMs: syncWithTts ? 0 : performance.now(),
+      fallbackDurationMs: Math.max(500, Math.round(totalWeight * (syncWithTts ? 50 : 18))),
+    };
+    setStreamedChars(initialRevealed);
+    startStreamTimer();
+  }
 
   function stopCamera() {
     cameraRequestRef.current++;
@@ -106,6 +200,7 @@ export function SelfExamCapture({
       analyzeSessionRef.current++;
       stopCamera();
       stopSpeaking();
+      finishStreaming();
     };
   }, []);
 
@@ -113,6 +208,8 @@ export function SelfExamCapture({
     analyzeSessionRef.current++;
     stopCamera();
     stopSpeaking();
+    finishStreaming();
+    setStreamedChars(undefined);
     setDataUrl('');
     setNotes('');
     setError('');
@@ -206,36 +303,79 @@ export function SelfExamCapture({
     setSpeaking(false);
     setTtsLoading(false);
     setTtsError('');
+    finishStreaming();
+    setStreamedChars(undefined);
     setDataUrl('');
     setLatestResult(null);
     setError('');
   }
 
-  function speakObservation(record: ImageAssessmentRecord) {
+  function speakObservation(record: ImageAssessmentRecord, streamFromBeginning = true) {
     const speechText = buildObservationSpeechText(record);
     if (!speechText) return;
     setTtsError('');
     setSpeaking(false);
+    if (streamFromBeginning) {
+      startObservationStream(record, true);
+    }
     const started = speakAssistantReply(speechText, {
       preferServerAudio: true,
-      onStart: () => {
+      onStart: meta => {
         if (!mountedRef.current) return;
         setTtsLoading(false);
         setSpeaking(true);
+        const cur = streamTargetRef.current;
+        if (cur && cur.recordId === record.id) {
+          cur.waitingForTts = false;
+          cur.startedAtMs = performance.now();
+          if (meta?.durationSec && meta.durationSec > 0) {
+            cur.audioDriven = true;
+          }
+        }
+      },
+      onProgress: progress => {
+        const cur = streamTargetRef.current;
+        if (!cur || cur.recordId !== record.id) return;
+        if (progress.durationSec > 0 || progress.ratio > 0) {
+          cur.waitingForTts = false;
+          cur.audioDriven = true;
+          cur.targetChars = Math.max(cur.targetChars, charCountForStreamRatio(cur.weights, progress.ratio));
+        }
       },
       onEnd: () => {
         if (!mountedRef.current) return;
         setTtsLoading(false);
         setSpeaking(false);
+        const cur = streamTargetRef.current;
+        if (cur && cur.recordId === record.id) {
+          cur.waitingForTts = false;
+          cur.audioDriven = true;
+          cur.targetChars = cur.totalChars;
+        }
+        finishStreaming();
       },
       onError: message => {
         if (!mountedRef.current) return;
         setTtsLoading(false);
         setSpeaking(false);
         if (message) setTtsError(message);
+        const cur = streamTargetRef.current;
+        if (cur && cur.recordId === record.id) {
+          cur.waitingForTts = false;
+          cur.audioDriven = false;
+          cur.startedAtMs = performance.now();
+        }
       },
     });
     setTtsLoading(started);
+    if (!started) {
+      const cur = streamTargetRef.current;
+      if (cur && cur.recordId === record.id) {
+        cur.waitingForTts = false;
+        cur.audioDriven = false;
+        cur.startedAtMs = performance.now();
+      }
+    }
   }
 
   function toggleSpeakLatest() {
@@ -243,10 +383,11 @@ export function SelfExamCapture({
       stopSpeaking();
       setTtsLoading(false);
       setSpeaking(false);
+      finishStreaming();
       return;
     }
     if (!latestResult) return;
-    speakObservation(latestResult);
+    speakObservation(latestResult, true);
   }
 
   function loadReferenceFrame() {
@@ -260,13 +401,19 @@ export function SelfExamCapture({
 
   async function handleAnalyze() {
     if (cameraOpen) {
-      setError('Live camera preview is active. Click Capture Frame to snapshot a photo first, or Stop Camera for checklist-only analysis.');
+      setError('Live camera preview is active. Click Capture Frame to snapshot a photo first.');
+      return;
+    }
+    if (!dataUrl || !dataUrl.trim()) {
+      setError('Please upload an image, capture a live camera frame, or load a sample scan before analyzing.');
       return;
     }
     const token = ++analyzeSessionRef.current;
     stopSpeaking();
     setTtsLoading(false);
     setSpeaking(false);
+    finishStreaming();
+    setStreamedChars(undefined);
     setError('');
     setTtsError('');
     const shouldAutoSpeak = autoRead && isTtsPlaybackSupported();
@@ -290,7 +437,9 @@ export function SelfExamCapture({
       setLatestResult(record);
       onAssessmentSaved(record);
       if (shouldAutoSpeak) {
-        speakObservation(record);
+        speakObservation(record, true);
+      } else {
+        startObservationStream(record, false);
       }
     } catch (cause) {
       if (!mountedRef.current || token !== analyzeSessionRef.current) return;
@@ -367,6 +516,8 @@ export function SelfExamCapture({
               stopSpeaking();
               setSpeaking(false);
               setTtsError('');
+              finishStreaming();
+              setStreamedChars(undefined);
               setLatestResult(null);
             }}
           >
@@ -376,18 +527,68 @@ export function SelfExamCapture({
       </div>
 
       <div className="self-exam-grid">
-        <div className="self-exam-guide">
-          <h3>{guide.label}</h3>
-          <p className="muted">{guide.subtitle}</p>
-          <ol className="self-exam-steps">
-            {guide.steps.map(step => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
-          <div className="self-exam-ref">
-            <small><strong>Expected baseline:</strong> {guide.normalReference}</small>
-            <small><strong>Escalate if:</strong> {guide.escalateTrigger}</small>
+        <div className="self-exam-left-column">
+          <div className="self-exam-guide">
+            <h3>{guide.label}</h3>
+            <p className="muted">{guide.subtitle}</p>
+            <ol className="self-exam-steps">
+              {guide.steps.map(step => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+            <div className="self-exam-ref">
+              <small><strong>Expected baseline:</strong> {guide.normalReference}</small>
+              <small><strong>Escalate if:</strong> {guide.escalateTrigger}</small>
+            </div>
           </div>
+
+          {latestResult ? (
+            <div className={`observation-alert ${latestResult.severity === 'critical' ? 'critical' : latestResult.severity === 'nominal' ? 'info' : ''}`} role="status">
+              <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                <strong>Assessment Result ({latestResult.analysisSource})</strong>
+                <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                  <span className="pill">{latestResult.severity.toUpperCase()} · {latestResult.imageQuality}</span>
+                  {ttsSupported ? (
+                    <button
+                      type="button"
+                      className="button secondary compact-btn"
+                      onClick={toggleSpeakLatest}
+                      aria-label={speaking ? 'Stop observation readout' : ttsLoading ? 'Cancel voice synthesis' : 'Read observation aloud'}
+                    >
+                      {speaking || ttsLoading ? <Square size={12} aria-hidden="true" /> : <Volume2 size={14} aria-hidden="true" />}
+                      {speaking ? 'Stop' : ttsLoading ? 'Synthesizing...' : 'Read Aloud'}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              {(() => {
+                const stream = sliceObservationStream(latestResult, streamedChars);
+                return (
+                  <>
+                    <p>
+                      {stream.findingsText}
+                      {!stream.findingsComplete && <span className="typing-cursor" aria-hidden="true" />}
+                    </p>
+                    {stream.showActions && (
+                      <ul className="self-exam-actions-list">
+                        {latestResult.recommendedActions.map(action => (
+                          <li key={action}>{action}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {ttsError ? <small className="warning-text">{ttsError}</small> : null}
+                    {stream.showConsult && (
+                      latestResult.groundConsultRequired ? (
+                        <small className="warning-text">Ground Flight Surgeon review recommended at next comms pass.</small>
+                      ) : (
+                        <small className="success-text"><CheckCircle2 size={13} style={{ display: 'inline', verticalAlign: 'middle' }} aria-hidden="true" /> Recorded cleanly on device history.</small>
+                      )
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          ) : null}
         </div>
 
         <div className="self-exam-capture-box">
@@ -475,51 +676,24 @@ export function SelfExamCapture({
 
           {error ? <div className="error-box" role="alert">{error}</div> : null}
 
-          <button
-            type="button"
-            className="button primary"
-            disabled={submitting}
-            onClick={handleAnalyze}
-          >
-            <Sparkles size={15} aria-hidden="true" />
-            {submitting ? 'Analyzing frame & saving...' : 'Analyze & Save Exam'}
-          </button>
+          {(() => {
+            const hasImage = Boolean(dataUrl && dataUrl.trim().length > 0);
+            return (
+              <button
+                type="button"
+                className="button primary"
+                disabled={submitting || !hasImage}
+                title={!hasImage ? 'Upload an image, load a sample scan, or capture a live camera frame to enable analysis' : undefined}
+                onClick={handleAnalyze}
+              >
+                <Sparkles size={15} aria-hidden="true" />
+                {submitting ? 'Analyzing frame & saving...' : 'Analyze & Save Exam'}
+              </button>
+            );
+          })()}
         </div>
       </div>
 
-      {latestResult ? (
-        <div className={`observation-alert ${latestResult.severity === 'critical' ? 'critical' : latestResult.severity === 'nominal' ? 'info' : ''}`} role="status">
-          <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-            <strong>Assessment Result ({latestResult.analysisSource})</strong>
-            <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-              <span className="pill">{latestResult.severity.toUpperCase()} · {latestResult.imageQuality}</span>
-              {ttsSupported ? (
-                <button
-                  type="button"
-                  className="button secondary compact-btn"
-                  onClick={toggleSpeakLatest}
-                  aria-label={speaking ? 'Stop observation readout' : ttsLoading ? 'Cancel voice synthesis' : 'Read observation aloud'}
-                >
-                  {speaking || ttsLoading ? <Square size={12} aria-hidden="true" /> : <Volume2 size={14} aria-hidden="true" />}
-                  {speaking ? 'Stop' : ttsLoading ? 'Synthesizing...' : 'Read Aloud'}
-                </button>
-              ) : null}
-            </div>
-          </div>
-          <p>{latestResult.findings}</p>
-          <ul className="self-exam-actions-list">
-            {latestResult.recommendedActions.map(action => (
-              <li key={action}>{action}</li>
-            ))}
-          </ul>
-          {ttsError ? <small className="warning-text">{ttsError}</small> : null}
-          {latestResult.groundConsultRequired ? (
-            <small className="warning-text">Ground Flight Surgeon review recommended at next comms pass.</small>
-          ) : (
-            <small className="success-text"><CheckCircle2 size={13} style={{ display: 'inline', verticalAlign: 'middle' }} aria-hidden="true" /> Recorded cleanly on device history.</small>
-          )}
-        </div>
-      ) : null}
 
       {assessments.length > 0 ? (
         <details className="disclosure">

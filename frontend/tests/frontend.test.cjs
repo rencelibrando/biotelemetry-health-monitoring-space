@@ -3164,3 +3164,134 @@ test('live alert sync reconciles BLE overrides, DONKI Kp, and stale server alert
   const ecgSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'components', 'ECGMonitor.tsx'), 'utf8');
   assert.match(ecgSrc, /canvas\.clientWidth/);
 });
+
+test('computeTextWeights and sliceObservationFindings provide accurate weights and character slicing', () => {
+  const { computeTextWeights, sliceObservationFindings } = require('../src/services/selfExams.ts');
+
+  const text = 'ONSD is 4.8 mm. Normal scleral contour.';
+  const weights = computeTextWeights(text);
+  assert.equal(weights.length, text.length);
+
+  const dotIdx = text.indexOf('.');
+  assert.ok((weights[dotIdx] - weights[dotIdx - 1]) > (weights[1] - weights[0]));
+
+  const partial = sliceObservationFindings(text, 10);
+  assert.equal(partial.text, text.slice(0, 10));
+  assert.equal(partial.complete, false);
+
+  const complete = sliceObservationFindings(text, text.length);
+  assert.equal(complete.text, text);
+  assert.equal(complete.complete, true);
+});
+
+test('SelfExamCapture renders assessment result inside the left column in vertical layout', () => {
+  const { SelfExamCapture } = require('../src/components/SelfExamCapture.tsx');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.css'), 'utf8');
+
+  assert.match(css, /\.self-exam-left-column\s*\{[\s\S]*flex-direction:\s*column;/);
+
+  const html = renderToStaticMarkup(React.createElement(SelfExamCapture, {
+    astronautId: 'ASTRO-01',
+    vitals: {
+      astronaut_id: 'ASTRO-01',
+      timestamp: '2026-11-15T08:00:00Z',
+      heart_rate: 72,
+    },
+    kpIndex: 2.1,
+    offline: false,
+    examType: 'dermal_radiation',
+    onExamTypeChange: () => {},
+    assessments: [],
+    onAssessmentSaved: () => {},
+  }));
+
+  assert.match(html, /self-exam-left-column/);
+});
+
+test('SelfExamCapture streams observation findings character by character synchronized with TTS', () => {
+  const { SelfExamCapture } = require('../src/components/SelfExamCapture.tsx');
+  const captureSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'components', 'SelfExamCapture.tsx'), 'utf8');
+
+  assert.match(captureSrc, /sliceObservationStream/);
+  assert.match(captureSrc, /typing-cursor/);
+  assert.match(captureSrc, /charCountForStreamRatio/);
+  assert.match(captureSrc, /computeObservationSpeechWeights/);
+});
+
+test('getObservationSpeechParts and sliceObservationStream synchronize sections with TTS', () => {
+  const {
+    getObservationSpeechParts,
+    computeObservationSpeechWeights,
+    sliceObservationStream,
+  } = require('../src/services/selfExams.ts');
+
+  const record = {
+    id: 'test-1',
+    astronautId: 'ASTRO-01',
+    examType: 'dermal_radiation',
+    recordedAt: '2026-11-15T08:00:00Z',
+    severity: 'warning',
+    findings: 'Mild erythema observed.',
+    recommendedActions: ['Apply saline', 'Monitor spread'],
+    groundConsultRequired: true,
+    analysisSource: 'gemini-vision',
+  };
+
+  const parts = getObservationSpeechParts(record);
+  assert.match(parts.intro, /Skin & Radiation Erythema assessment: warning\./);
+  assert.equal(parts.findings, 'Mild erythema observed.');
+  assert.match(parts.actionsText, /Recommended actions: Apply saline\. Monitor spread\./);
+  assert.match(parts.consultText, /Ground Flight Surgeon review is recommended\./);
+
+  const { introEndIdx, findingsEndIdx } = computeObservationSpeechWeights(record);
+  assert.ok(introEndIdx > 0);
+  assert.ok(findingsEndIdx > introEndIdx);
+
+  // When revealedChars is within intro: findings should not have started typing yet!
+  const introSlice = sliceObservationStream(record, introEndIdx - 5);
+  assert.equal(introSlice.findingsText, '');
+  assert.equal(introSlice.findingsComplete, false);
+  assert.equal(introSlice.showActions, false);
+
+  // When revealedChars enters findings:
+  const findingsSlice = sliceObservationStream(record, introEndIdx + 4);
+  assert.equal(findingsSlice.findingsText, 'Mild');
+  assert.equal(findingsSlice.findingsComplete, false);
+  assert.equal(findingsSlice.showActions, false);
+
+  // When findings finishes:
+  const actionsSlice = sliceObservationStream(record, findingsEndIdx + 2);
+  assert.equal(actionsSlice.findingsText, 'Mild erythema observed.');
+  assert.equal(actionsSlice.findingsComplete, true);
+  assert.equal(actionsSlice.showActions, true);
+
+  // Complete slice:
+  const fullSlice = sliceObservationStream(record, undefined);
+  assert.equal(fullSlice.findingsText, 'Mild erythema observed.');
+  assert.equal(fullSlice.findingsComplete, true);
+  assert.equal(fullSlice.showActions, true);
+  assert.equal(fullSlice.showConsult, true);
+  assert.equal(fullSlice.complete, true);
+});
+
+test('SelfExamCapture restricts analyze button when no image or scan is attached', () => {
+  const { SelfExamCapture } = require('../src/components/SelfExamCapture.tsx');
+
+  // Without dataUrl or captured image, button must have disabled attribute
+  const noImageHtml = renderToStaticMarkup(React.createElement(SelfExamCapture, {
+    astronautId: 'ASTRO-01',
+    vitals: { astronaut_id: 'ASTRO-01', timestamp: '2026-11-15T08:00:00Z', heart_rate: 72 },
+    kpIndex: 2.1,
+    offline: false,
+    examType: 'dermal_radiation',
+    onExamTypeChange: () => {},
+    assessments: [],
+    onAssessmentSaved: () => {},
+  }));
+
+  assert.match(noImageHtml, /<button[^>]*disabled[^>]*>[\s\S]*?Analyze &amp; Save Exam<\/button>/);
+});
+
+
+
+

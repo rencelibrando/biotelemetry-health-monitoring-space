@@ -5004,6 +5004,14 @@ input[type=datetime-local] {
   min-width: 0;
 }
 
+.self-exam-left-column {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+
 .self-exam-guide {
   padding: 14px;
   border: 1px solid var(--border);

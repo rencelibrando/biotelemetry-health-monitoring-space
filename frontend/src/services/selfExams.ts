@@ -138,18 +138,161 @@ export function generateReferenceScanDataUrl(examType: SelfExamType): string {
   return canvas.toDataURL('image/png');
 }
 
-export function buildObservationSpeechText(record: ImageAssessmentRecord): string {
+export interface ObservationSpeechParts {
+  intro: string;
+  findings: string;
+  actionsText: string;
+  consultText: string;
+}
+
+export function getObservationSpeechParts(record: ImageAssessmentRecord): ObservationSpeechParts {
   const guide = SELF_EXAM_GUIDES[record.examType];
   const label = guide?.label ?? record.examType;
   const actions = record.recommendedActions.slice(0, 3).join('. ');
-  const parts = [
-    `${label} assessment: ${record.severity}.`,
-    record.findings,
-    actions ? `Recommended actions: ${actions}.` : '',
-    record.groundConsultRequired ? 'Ground Flight Surgeon review is recommended.' : '',
-  ].filter(Boolean);
-  return parts.join(' ');
+  return {
+    intro: `${label} assessment: ${record.severity}.`,
+    findings: record.findings.trim(),
+    actionsText: actions ? `Recommended actions: ${actions}.` : '',
+    consultText: record.groundConsultRequired ? 'Ground Flight Surgeon review is recommended.' : '',
+  };
 }
+
+export function buildObservationSpeechText(record: ImageAssessmentRecord): string {
+  const parts = getObservationSpeechParts(record);
+  return [parts.intro, parts.findings, parts.actionsText, parts.consultText]
+    .filter(Boolean)
+    .join(' ');
+}
+
+// Compute cumulative display weights for observation text with punctuation pause weights.
+export function computeTextWeights(text: string): number[] {
+  const cumulative: number[] = [];
+  let total = 0;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    let weight = 1;
+    if (/\s/.test(ch)) weight = 0.45;
+    else if (/[.!?]/.test(ch)) weight = 4.2;
+    else if (/[,;:]/.test(ch)) weight = 2.6;
+    total += weight;
+    cumulative.push(total);
+  }
+  return cumulative;
+}
+
+export function computeObservationSpeechWeights(record: ImageAssessmentRecord): {
+  weights: number[];
+  introEndIdx: number;
+  findingsEndIdx: number;
+  actionsEndIdx: number;
+  consultEndIdx: number;
+} {
+  const parts = getObservationSpeechParts(record);
+  const segments = [parts.intro, parts.findings, parts.actionsText, parts.consultText];
+  const cumulative: number[] = [];
+  let total = 0;
+  let introEndIdx = 0;
+  let findingsEndIdx = 0;
+  let actionsEndIdx = 0;
+  let consultEndIdx = 0;
+
+  segments.forEach((segment, segIdx) => {
+    for (let i = 0; i < segment.length; i++) {
+      const ch = segment[i];
+      let weight = 1;
+      if (/\s/.test(ch)) weight = 0.45;
+      else if (/[.!?]/.test(ch)) weight = 4.2;
+      else if (/[,;:]/.test(ch)) weight = 2.6;
+      if (segIdx < segments.length - 1 && i === segment.length - 1) {
+        weight += 3.5;
+      }
+      total += weight;
+      cumulative.push(total);
+    }
+    if (segIdx === 0) introEndIdx = cumulative.length;
+    else if (segIdx === 1) findingsEndIdx = cumulative.length;
+    else if (segIdx === 2) actionsEndIdx = cumulative.length;
+    else if (segIdx === 3) consultEndIdx = cumulative.length;
+  });
+
+  return {
+    weights: cumulative,
+    introEndIdx,
+    findingsEndIdx,
+    actionsEndIdx,
+    consultEndIdx,
+  };
+}
+
+export interface ObservationStreamSlice {
+  findingsText: string;
+  findingsComplete: boolean;
+  showActions: boolean;
+  showConsult: boolean;
+  complete: boolean;
+}
+
+// Slice observation findings and sections for character-by-character streaming matching speech.
+export function sliceObservationStream(
+  record: ImageAssessmentRecord,
+  revealedChars?: number,
+): ObservationStreamSlice {
+  const parts = getObservationSpeechParts(record);
+  const introLen = parts.intro.length;
+  const findingsLen = parts.findings.length;
+  const actionsLen = parts.actionsText.length;
+  const consultLen = parts.consultText.length;
+  const totalChars = introLen + findingsLen + actionsLen + consultLen;
+
+  if (revealedChars === undefined || revealedChars >= totalChars) {
+    return {
+      findingsText: record.findings,
+      findingsComplete: true,
+      showActions: record.recommendedActions.length > 0,
+      showConsult: true,
+      complete: true,
+    };
+  }
+
+  const clamped = Math.max(0, Math.floor(revealedChars));
+
+  if (clamped <= introLen) {
+    return {
+      findingsText: '',
+      findingsComplete: false,
+      showActions: false,
+      showConsult: false,
+      complete: false,
+    };
+  }
+
+  const findingsChars = Math.min(clamped - introLen, findingsLen);
+  const findingsComplete = findingsChars >= findingsLen;
+  const showActions = clamped > introLen + findingsLen && record.recommendedActions.length > 0;
+  const showConsult = clamped > introLen + findingsLen + actionsLen;
+
+  return {
+    findingsText: record.findings.slice(0, findingsChars),
+    findingsComplete,
+    showActions,
+    showConsult,
+    complete: clamped >= totalChars,
+  };
+}
+
+// Slice observation findings for character-by-character streaming with completion indicator.
+export function sliceObservationFindings(findings: string, revealedChars?: number): {
+  text: string;
+  complete: boolean;
+} {
+  const len = findings.length;
+  if (revealedChars === undefined || revealedChars >= len) {
+    return { text: findings, complete: true };
+  }
+  const count = Math.max(0, Math.floor(revealedChars));
+  return { text: findings.slice(0, count), complete: count >= len };
+}
+
 
 export function remoteRowToAssessment(row: RemoteAssessmentRow): ImageAssessmentRecord {
   const validExam: SelfExamType =

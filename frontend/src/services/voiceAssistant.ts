@@ -1227,6 +1227,13 @@ export function speakAssistantReply(
     return true;
   }
 
+  const chunkOffsets: number[] = [];
+  let runningChunkOffset = 0;
+  for (const chunk of chunks) {
+    chunkOffsets.push(runningChunkOffset);
+    runningChunkOffset += chunk.length + 1;
+  }
+
   const speakChunk = (
     chunkIndex: number,
     preferLocal: boolean,
@@ -1309,6 +1316,15 @@ export function speakAssistantReply(
         notifiedStart = true;
         callbacks?.onStart?.();
       }
+    };
+
+    utterance.onboundary = event => {
+      if (sessionId !== activeSessionId) return;
+      const charIdx = typeof event.charIndex === 'number' ? event.charIndex : 0;
+      const offset = chunkOffsets[chunkIndex] ?? 0;
+      const total = cleaned.length || 1;
+      const ratio = Math.min(1, Math.max(0, (offset + charIdx) / total));
+      callbacks?.onProgress?.({ currentTimeSec: 0, durationSec: 1, ratio });
     };
 
     utterance.onend = () => {
