@@ -161,7 +161,7 @@ export function BodyHealthMap({
                     }}
                     type="button"
                     data-side={region.cx >= 50 ? 'right' : 'left'}
-                    style={{ left: `${region.cx}%`, top: `${region.cy}%` }}
+                    style={webglReady ? undefined : { left: `${region.cx}%`, top: `${region.cy}%` }}
                     aria-label={`${region.label}: ${STATUS_LABELS[region.status]}`}
                     aria-pressed={isSelected}
                     className={`body-pin status-${region.status} ${isSelected ? 'selected' : ''}`}

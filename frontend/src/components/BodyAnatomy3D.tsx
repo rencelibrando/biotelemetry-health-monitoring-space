@@ -513,14 +513,14 @@ export default function BodyAnatomy3D({
     distance?: number;
     active: boolean;
     needsReset?: boolean;
-  }>({ azimuthRad: 0.22, polarRad: 1.46, targetY: 0.04, active: false, needsReset: false });
+  }>({ azimuthRad: 0.22, polarRad: 1.46, targetY: -0.02, active: false, needsReset: false });
 
   useEffect(() => {
     if (!presetRequest) return;
     glideRef.current = {
       azimuthRad: (presetRequest.azimuthDeg * Math.PI) / 180,
       polarRad: presetRequest.polarRad ?? 1.46,
-      targetY: presetRequest.targetY ?? 0.04,
+      targetY: presetRequest.targetY ?? -0.02,
       distance: presetRequest.distance,
       active: true,
       needsReset: true,
@@ -600,8 +600,8 @@ export default function BodyAnatomy3D({
       controlsInstance.screenSpacePanning = true;
       controlsInstance.minDistance = 0.45;
       controlsInstance.maxDistance = 5.4;
-      controlsInstance.minPolarAngle = 0.03;
-      controlsInstance.maxPolarAngle = Math.PI - 0.03;
+      controlsInstance.minPolarAngle = 1.10;
+      controlsInstance.maxPolarAngle = 1.75;
       controlsInstance.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: null, RIGHT: null };
       controlsInstance.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
       controlsInstance.target.set(0, -0.02, 0);
@@ -777,7 +777,7 @@ export default function BodyAnatomy3D({
       };
 
       // 1. Brain & Ocular (Neuro-Ocular SANS)
-      const neuroMeta = createOrganGroup('neuro_ocular', new THREE.Vector3(0, 0.745, 0.082), 0.78);
+      const neuroMeta = createOrganGroup('neuro_ocular', new THREE.Vector3(0, 0.745, 0.022), 0.78);
       for (const side of [-1, 1]) {
         const lobe = addOrganMesh(
           neuroMeta,
@@ -807,7 +807,7 @@ export default function BodyAnatomy3D({
       }
 
       // 2. Heart & Major Systemic Vasculature (Cardiovascular)
-      const cardioMeta = createOrganGroup('cardiovascular', new THREE.Vector3(0.026, 0.365, 0.078), 0.85);
+      const cardioMeta = createOrganGroup('cardiovascular', new THREE.Vector3(0.024, 0.368, 0.024), 0.85);
       const heartCluster = new THREE.Group();
       heartCluster.position.set(0.020, 0.372, 0.025);
       heartCluster.rotation.set(0.18, 0.12, -0.35);
@@ -849,7 +849,7 @@ export default function BodyAnatomy3D({
       }
 
       // 3. Lungs & Bronchial Trachea (Respiratory)
-      const respMeta = createOrganGroup('respiratory', new THREE.Vector3(-0.078, 0.395, 0.068), 0.68);
+      const respMeta = createOrganGroup('respiratory', new THREE.Vector3(-0.074, 0.392, 0.008), 0.68);
       const lungGroup = new THREE.Group();
       respMeta.group.add(lungGroup);
       const trachea = new THREE.Mesh(
@@ -890,7 +890,7 @@ export default function BodyAnatomy3D({
       }
 
       // 4. Metabolic (Liver, Stomach & Visceral GI Core)
-      const metMeta = createOrganGroup('metabolic', new THREE.Vector3(0.028, 0.195, 0.082), 0.72);
+      const metMeta = createOrganGroup('metabolic', new THREE.Vector3(0.028, 0.195, 0.028), 0.72);
       addOrganMesh(
         metMeta,
         new THREE.SphereGeometry(0.044, 16, 14),
@@ -919,7 +919,7 @@ export default function BodyAnatomy3D({
       addOrganMesh(metMeta, new THREE.TubeGeometry(giCurve, 32, 0.014, 10, false), 0x34d399, 0.56);
 
       // 5. Musculoskeletal (Lumbar Spine + Femoral Quadriceps Load Cores)
-      const muscMeta = createOrganGroup('musculoskeletal', new THREE.Vector3(-0.108, -0.23, 0.068), 0.65);
+      const muscMeta = createOrganGroup('musculoskeletal', new THREE.Vector3(-0.108, -0.235, 0.010), 0.65);
       for (const side of [-1, 1]) {
         const quadCore = new THREE.CatmullRomCurve3([
           new THREE.Vector3(side * 0.098, -0.07, 0.005),
@@ -937,7 +937,7 @@ export default function BodyAnatomy3D({
       );
 
       // 6. Dermal & Immune (Biometric Forearm Band + Cervical/Axillary Lymph Nodes)
-      const dermalMeta = createOrganGroup('dermal_immune', new THREE.Vector3(-0.312, 0.008, 0.048), 0.78);
+      const dermalMeta = createOrganGroup('dermal_immune', new THREE.Vector3(-0.312, 0.005, 0.012), 0.78);
       addOrganMesh(
         dermalMeta,
         new THREE.TorusGeometry(0.044, 0.007, 10, 24),
@@ -1169,7 +1169,7 @@ export default function BodyAnatomy3D({
         } else if (ev.deltaY > 0) {
           const dist = camera.position.distanceTo(controls.target);
           if (dist > 1.75) {
-            focusGoalY += (0.04 - focusGoalY) * 0.25;
+            focusGoalY += (-0.02 - focusGoalY) * 0.25;
             viewPanGoalX *= 0.6;
             viewPanGoalY *= 0.6;
           }
@@ -1396,15 +1396,16 @@ export default function BodyAnatomy3D({
           const cameraSideDot = -(bodyToPin.x * camDir.x + bodyToPin.z * camDir.z);
           projVec.project(camera);
 
-          const xPct = Math.max(8, Math.min(92, (projVec.x * 0.5 + 0.5) * 100));
-          const yPct = Math.max(13, Math.min(90, (-projVec.y * 0.5 + 0.5) * 100));
+          const xPct = (projVec.x * 0.5 + 0.5) * 100;
+          const yPct = (-projVec.y * 0.5 + 0.5) * 100;
           const isBackSide = cameraSideDot < -0.02;
           const isBehindCamera = projVec.z > 1;
+          const isOutOfView = isBehindCamera || projVec.x < -1.15 || projVec.x > 1.15 || projVec.y < -1.15 || projVec.y > 1.15;
 
-          btn.style.left = `${xPct.toFixed(2)}%`;
-          btn.style.top = `${yPct.toFixed(2)}%`;
-          btn.style.opacity = isBehindCamera ? '0' : isBackSide && region.id !== state.selectedId ? '0.45' : '1';
-          btn.style.pointerEvents = isBehindCamera ? 'none' : 'auto';
+          btn.style.left = `${Math.max(-10, Math.min(110, xPct)).toFixed(2)}%`;
+          btn.style.top = `${Math.max(-10, Math.min(110, yPct)).toFixed(2)}%`;
+          btn.style.opacity = isOutOfView ? '0' : isBackSide && region.id !== state.selectedId ? '0.45' : '1';
+          btn.style.pointerEvents = isOutOfView ? 'none' : 'auto';
           btn.dataset.side = xPct > 50 ? 'right' : 'left';
         }
 
